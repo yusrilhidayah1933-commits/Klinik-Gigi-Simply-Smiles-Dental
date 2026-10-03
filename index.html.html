@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-[#f3f6fc]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klinik Gigi - Sistem Manajemen Admin</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#3b82f6',
+                            600: '#2b52f5',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        bgSoft: '#f3f6fc',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        '2xl': '1rem',
+                        '3xl': '1.5rem',
+                        '4xl': '2rem',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f3f6fc;
+            color: #1e293b;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.02);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(43, 82, 245, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+        }
+
+        .sidebar-item-active {
+            background-color: #ffffff;
+            color: #2b52f5 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .calendar-day-active {
+            background-color: #2b52f5;
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(43, 82, 245, 0.35);
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="h-full overflow-hidden text-sm bg-[#f3f6fc] antialiased">
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <div id="loginScreen" class="fixed inset-0 z-50 bg-[#2b52f5] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 rounded-3xl bg-brand-50 text-brand-600 flex items-center justify-center font-extrabold text-3xl mx-auto shadow-sm">
+                    <i class="fa-solid fa-tooth"></i>
+                </div>
+                <h2 class="text-2xl font-extrabold text-slate-800">Klinik Gigi MedCare</h2>
+                <p class="text-xs text-slate-400">Sistem Manajemen Admin & Operasional Klinik</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Username / ID Admin</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="login_user" value="admin_alisha" required class="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">Kata Sandi</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-key absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="password" id="login_pass" value="123456" required class="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-2xl transition-all shadow-md text-xs">
+                    <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Masuk ke Dashboard Admin
+                </button>
+            </form>
+
+            <div class="pt-2 border-t border-slate-100 text-center">
+                <button onclick="bypassLogin()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-[#2b52f5] fa-bolt text-brand-600"></i> Bypass Masuk Mode Demo Admin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp" class="flex h-screen overflow-hidden p-3 md:p-5 gap-4 hidden">
+
+        <!-- SIDEBAR NAV (Left Slim Panel) -->
+        <aside class="w-20 md:w-64 bg-[#2b52f5] rounded-3xl flex flex-col justify-between p-4 text-white shadow-xl transition-all duration-300 flex-shrink-0 z-20">
+            <div>
+                <!-- App Logo -->
+                <div class="flex items-center gap-3 px-2 py-3 mb-6">
+                    <div class="w-10 h-10 rounded-2xl bg-white text-[#2b52f5] flex items-center justify-center font-extrabold text-xl shadow-md">
+                        <i class="fa-solid fa-tooth"></i>
+                    </div>
+                    <div class="hidden md:block">
+                        <h1 class="font-bold text-base leading-tight">MedCare</h1>
+                        <p class="text-[11px] text-blue-200 tracking-wider uppercase font-medium">Klinik Gigi</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Items -->
+                <nav class="space-y-1.5 overflow-y-auto max-h-[calc(100vh-220px)] hide-scrollbar">
+                    <a href="#" onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-house w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Dashboard</span>
+                    </a>
+                    
+                    <a href="#" onclick="switchView('pasien')" id="nav-pasien" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-user-group w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Pasien</span>
+                    </a>
+
+                    <a href="#" onclick="switchView('layanan')" id="nav-layanan" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-teeth-open w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Layanan Gigi</span>
+                    </a>
+
+                    <!-- Submenu: Pendapatan -->
+                    <div class="space-y-1">
+                        <button onclick="toggleSubmenu('submenu-pendapatan')" class="w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-wallet w-5 text-center text-base"></i>
+                                <span class="hidden md:inline font-medium">Pendapatan</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-xs hidden md:inline"></i>
+                        </button>
+                        <div id="submenu-pendapatan" class="hidden pl-8 space-y-1">
+                            <a href="#" onclick="switchView('transaksi')" id="nav-transaksi" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Kasir & Transaksi</a>
+                            <a href="#" onclick="switchView('rekap_pendapatan')" id="nav-rekap_pendapatan" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Rekap Pendapatan</a>
+                        </div>
+                    </div>
+
+                    <!-- Submenu: Dokter -->
+                    <div class="space-y-1">
+                        <button onclick="toggleSubmenu('submenu-dokter')" class="w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-user-doctor w-5 text-center text-base"></i>
+                                <span class="hidden md:inline font-medium">Dokter</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-xs hidden md:inline"></i>
+                        </button>
+                        <div id="submenu-dokter" class="hidden pl-8 space-y-1">
+                            <a href="#" onclick="switchView('dokter_data')" id="nav-dokter_data" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Data Dokter</a>
+                            <a href="#" onclick="switchView('dokter_jadwal')" id="nav-dokter_jadwal" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Jadwal Praktik</a>
+                            <a href="#" onclick="switchView('dokter_absensi')" id="nav-dokter_absensi" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Absensi Dokter</a>
+                        </div>
+                    </div>
+
+                    <!-- Submenu: Perawat -->
+                    <div class="space-y-1">
+                        <button onclick="toggleSubmenu('submenu-perawat')" class="w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-user-nurse w-5 text-center text-base"></i>
+                                <span class="hidden md:inline font-medium">Perawat</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-xs hidden md:inline"></i>
+                        </button>
+                        <div id="submenu-perawat" class="hidden pl-8 space-y-1">
+                            <a href="#" onclick="switchView('perawat_data')" id="nav-perawat_data" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Data Perawat</a>
+                            <a href="#" onclick="switchView('perawat_absensi')" id="nav-perawat_absensi" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Absensi Perawat</a>
+                        </div>
+                    </div>
+
+                    <!-- Submenu: Laporan Akhir -->
+                    <div class="space-y-1">
+                        <button onclick="toggleSubmenu('submenu-laporan')" class="w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                            <div class="flex items-center gap-3">
+                                <i class="fa-solid fa-file-invoice w-5 text-center text-base"></i>
+                                <span class="hidden md:inline font-medium">Laporan Akhir</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-xs hidden md:inline"></i>
+                        </button>
+                        <div id="submenu-laporan" class="hidden pl-8 space-y-1">
+                            <a href="#" onclick="switchView('laporan_pendapatan')" id="nav-laporan_pendapatan" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Full Pendapatan</a>
+                            <a href="#" onclick="switchView('laporan_absensi_dokter')" id="nav-laporan_absensi_dokter" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Full Absensi Dokter</a>
+                            <a href="#" onclick="switchView('laporan_absensi_perawat')" id="nav-laporan_absensi_perawat" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Full Absensi Perawat</a>
+                            <a href="#" onclick="switchView('laporan_ringkasan')" id="nav-laporan_ringkasan" class="nav-item block py-2 text-xs text-blue-100 hover:text-white">Ringkasan Eksekutif</a>
+                        </div>
+                    </div>
+
+                    <a href="#" onclick="switchView('statistik')" id="nav-statistik" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-chart-line w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Statistik</span>
+                    </a>
+
+                    <a href="#" onclick="switchView('export')" id="nav-export" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-file-export w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Export Laporan</span>
+                    </a>
+
+                    <a href="#" onclick="switchView('pengguna')" id="nav-pengguna" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-users-gear w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Pengguna</span>
+                    </a>
+
+                    <a href="#" onclick="openGasModal()" class="flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-amber-400/20 text-amber-200 hover:bg-amber-400/30 hover:text-white transition-all font-semibold">
+                        <i class="fa-solid fa-code w-5 text-center text-base text-amber-300"></i>
+                        <span class="hidden md:inline text-xs">Integrasi Google Sheets</span>
+                    </a>
+
+                    <a href="#" onclick="switchView('notifikasi')" id="nav-notifikasi" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all relative">
+                        <i class="fa-solid fa-bell w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Notifikasi</span>
+                        <span class="absolute top-2 right-2 md:right-4 w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
+                    </a>
+
+                    <a href="#" onclick="switchView('pengaturan')" id="nav-pengaturan" class="nav-item flex items-center gap-3 px-3.5 py-3 rounded-2xl text-white/80 hover:text-white hover:bg-white/10 transition-all">
+                        <i class="fa-solid fa-gear w-5 text-center text-base"></i>
+                        <span class="hidden md:inline font-medium">Pengaturan</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Logout Bottom -->
+            <div class="border-t border-white/20 pt-3">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-white/80 hover:bg-white/10 transition-all">
+                    <i class="fa-solid fa-right-from-bracket w-5 text-center text-base"></i>
+                    <span class="hidden md:inline font-medium">Keluar Admin</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden">
+
+            <!-- TOP HEADER BAR -->
+            <header class="flex items-center justify-between pb-4 pt-1 px-1 flex-shrink-0">
+                <!-- Search Input -->
+                <div class="relative w-72 md:w-96">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="globalSearch" oninput="handleGlobalSearch(this.value)" placeholder="Cari pasien, dokter, atau layanan..." 
+                        class="w-full pl-11 pr-4 py-2.5 rounded-2xl bg-white border-0 card-shadow text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none placeholder-slate-400">
+                </div>
+
+                <!-- Top Right Quick Controls -->
+                <div class="flex items-center gap-3">
+                    <button onclick="openGasModal()" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white card-shadow text-slate-700 hover:text-brand-600 font-bold text-xs">
+                        <i class="fa-solid fa-table-cells text-emerald-600"></i>
+                        <span>Google Sheets</span>
+                    </button>
+
+                    <button onclick="switchView('notifikasi')" class="relative w-10 h-10 rounded-2xl bg-white card-shadow flex items-center justify-center text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-bell text-sm"></i>
+                        <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500"></span>
+                    </button>
+                    
+                    <button onclick="switchView('pengaturan')" class="w-10 h-10 rounded-2xl bg-white card-shadow flex items-center justify-center text-slate-600 hover:text-brand-600 hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-gear text-sm"></i>
+                    </button>
+
+                    <!-- Mobile Toggle Right Panel -->
+                    <button onclick="toggleRightPanel()" class="xl:hidden w-10 h-10 rounded-2xl bg-brand-600 text-white shadow-md flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-days text-sm"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex-1 flex gap-4 overflow-hidden">
+                
+                <!-- DYNAMIC MAIN CONTENT VIEW AREA -->
+                <div id="content-container" class="flex-1 overflow-y-auto pr-1 hide-scrollbar space-y-4">
+                    <!-- Views will be dynamically loaded/switched here -->
+                </div>
+
+                <!-- RIGHT SIDE PANEL (Admin Profile, Mini Calendar, Today's Schedule) -->
+                <aside id="right-panel" class="hidden xl:flex w-80 bg-white rounded-3xl p-5 card-shadow flex-col justify-between overflow-y-auto hide-scrollbar flex-shrink-0">
+                    <div>
+                        <!-- Admin Profile Card -->
+                        <div class="bg-brand-600 text-white p-4 rounded-2xl shadow-md relative overflow-hidden mb-5">
+                            <div class="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10 pointer-events-none"></div>
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="text-[10px] tracking-wider uppercase font-bold text-blue-200">PROFIL ADMIN</span>
+                                <button onclick="switchView('pengaturan')" class="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center hover:bg-white/30 text-white text-xs">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-3 mb-3">
+                                <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200" 
+                                     alt="Doctor Avatar" 
+                                     class="w-12 h-12 rounded-full object-cover border-2 border-white/50 shadow-sm">
+                                <div>
+                                    <h3 class="font-bold text-sm leading-snug">Dr. Alisha Nicholls</h3>
+                                    <p class="text-[11px] text-blue-100">Kepala Klinik Gigi</p>
+                                    <p class="text-[10px] text-blue-200 flex items-center gap-1 mt-0.5">
+                                        <i class="fa-solid fa-location-dot"></i> Jakarta, Indonesia
+                                    </p>
+                                </div>
+                            </div>
+                            <!-- Quick Meta Badges -->
+                            <div class="grid grid-cols-3 gap-1 bg-white/10 p-2 rounded-xl text-center text-[10px] border border-white/10">
+                                <div>
+                                    <span class="block text-blue-200 font-light">Shift</span>
+                                    <span class="font-bold">Pagi</span>
+                                </div>
+                                <div>
+                                    <span class="block text-blue-200 font-light">NIP</span>
+                                    <span class="font-bold">D-8821</span>
+                                </div>
+                                <div>
+                                    <span class="block text-blue-200 font-light">Jam Kerja</span>
+                                    <span class="font-bold">08-16</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Calendar Widget -->
+                        <div class="mb-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-bold text-xs uppercase tracking-wider text-slate-700">JADWAL KALENDER</h4>
+                                <div class="bg-brand-50 text-brand-600 text-xs px-2.5 py-1 rounded-lg font-bold">
+                                    Oktober 2026
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400 mb-1">
+                                <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
+                            </div>
+                            
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-600">
+                                <span class="py-1.5 text-slate-300">28</span>
+                                <span class="py-1.5 text-slate-300">29</span>
+                                <span class="py-1.5 text-slate-300">30</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">1</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">2</span>
+                                <span class="py-1.5 rounded-xl calendar-day-active">3</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">4</span>
+                                
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">5</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">6</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">7</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">8</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">9</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">10</span>
+                                <span class="py-1.5 rounded-xl hover:bg-slate-100 cursor-pointer">11</span>
+                            </div>
+                        </div>
+
+                        <!-- Today's Schedule Timeline -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-bold text-xs uppercase tracking-wider text-slate-700">JANJI TEMU HARI INI</h4>
+                                <span class="text-[10px] text-slate-400">3 Okt, 2026</span>
+                            </div>
+
+                            <div class="space-y-2.5 text-xs">
+                                <div class="p-2.5 rounded-xl bg-slate-50 border-l-4 border-brand-500 hover:bg-blue-50 transition-all flex items-start justify-between">
+                                    <div>
+                                        <p class="font-bold text-slate-800">Scalling Gigi</p>
+                                        <p class="text-[11px] text-slate-500">Pasien: Budi Santoso</p>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-brand-600 bg-white px-2 py-0.5 rounded-md card-shadow">09:00 WIB</span>
+                                </div>
+
+                                <div class="p-2.5 rounded-xl bg-slate-50 border-l-4 border-emerald-500 hover:bg-emerald-50 transition-all flex items-start justify-between">
+                                    <div>
+                                        <p class="font-bold text-slate-800">Tambal Komposit</p>
+                                        <p class="text-[11px] text-slate-500">Pasien: Siti Rahma</p>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-emerald-600 bg-white px-2 py-0.5 rounded-md card-shadow">10:30 WIB</span>
+                                </div>
+
+                                <div class="p-2.5 rounded-xl bg-slate-50 border-l-4 border-purple-500 hover:bg-purple-50 transition-all flex items-start justify-between">
+                                    <div>
+                                        <p class="font-bold text-slate-800">Konsultasi Behel</p>
+                                        <p class="text-[11px] text-slate-500">Pasien: Andi Wijaya</p>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-purple-600 bg-white px-2 py-0.5 rounded-md card-shadow">13:15 WIB</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress Metrics -->
+                        <div class="mt-5 pt-4 border-t border-slate-100">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-700 mb-3">TARGET OPERASIONAL</h4>
+                            
+                            <div class="space-y-3 text-xs">
+                                <div>
+                                    <div class="flex justify-between text-[11px] mb-1 font-medium">
+                                        <span class="text-slate-600">Konsultasi Selesai</span>
+                                        <span class="font-bold text-brand-600">85%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div class="bg-brand-600 h-full rounded-full" style="width: 85%"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-[11px] mb-1 font-medium">
+                                        <span class="text-slate-600">Kepuasan Pasien</span>
+                                        <span class="font-bold text-emerald-500">92%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                        <div class="bg-emerald-500 h-full rounded-full" style="width: 92%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="modalContainer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm hidden transition-all duration-200">
+        <div id="modalContent" class="bg-white rounded-3xl p-6 shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transform scale-95 transition-all">
+            <!-- Dynamic Modal Content Injected Here -->
+        </div>
+    </div>
+
+    <script>
+        const initialData = {
+            pasien: [
+                { id: "PSG-001", nama: "Budi Santoso", umur: 32, gender: "Laki-laki", phone: "081234567890", riwayat: "Scalling & Tambal Gigi Molar", tglKunjungan: "2026-10-01" },
+                { id: "PSG-002", nama: "Siti Rahma", umur: 26, gender: "Perempuan", phone: "081987654321", riwayat: "Perawatan Saluran Akar", tglKunjungan: "2026-09-28" },
+                { id: "PSG-003", nama: "Andi Wijaya", umur: 21, gender: "Laki-laki", phone: "085611223344", riwayat: "Pemasangan Behel Metal", tglKunjungan: "2026-10-02" },
+                { id: "PSG-004", nama: "Dewi Lestari", umur: 29, gender: "Perempuan", phone: "082199887766", riwayat: "Bleaching Gigi", tglKunjungan: "2026-09-25" },
+                { id: "PSG-005", nama: "Rian Hidayat", umur: 40, gender: "Laki-laki", phone: "087733445566", riwayat: "Cabut Gigi Bungsu", tglKunjungan: "2026-10-03" }
+            ],
+            layanan: [
+                { id: "LYN-01", nama: "Scalling / Pembersihan Karang", kategori: "Perawatan Rutin", durasi: 45, harga: 350000, status: "Aktif" },
+                { id: "LYN-02", nama: "Tambal Gigi Komposit", kategori: "Restorasi", durasi: 30, harga: 400000, status: "Aktif" },
+                { id: "LYN-03", nama: "Pemasangan Behel Gigi", kategori: "Ortodontik", durasi: 90, harga: 4500000, status: "Aktif" },
+                { id: "LYN-04", nama: "Bleaching / Pemutihan Gigi", kategori: "Estetika", durasi: 60, harga: 1800000, status: "Aktif" },
+                { id: "LYN-05", nama: "Perawatan Saluran Akar (PSA)", kategori: "Endodontik", durasi: 60, harga: 750000, status: "Aktif" },
+                { id: "LYN-06", nama: "Cabut Gigi Bungsu (Odontektomi)", kategori: "Bedah Mulut", durasi: 60, harga: 1500000, status: "Aktif" }
+            ],
+            dokter: [
+                { id: "DR-01", nama: "Drg. Alisha Nicholls, Sp.KG", sip: "SIP/2022/8821", spesialis: "Konservasi Gigi", phone: "0811122233", status: "Aktif" },
+                { id: "DR-02", nama: "Drg. Ahmad Rizky, Sp.Ort", sip: "SIP/2021/7732", spesialis: "Ortodonti (Behel)", phone: "0811133344", status: "Aktif" },
+                { id: "DR-03", nama: "Drg. Maria Elena, Sp.BM", sip: "SIP/2023/1129", spesialis: "Bedah Mulut", phone: "0811144455", status: "Aktif" }
+            ],
+            perawat: [
+                { id: "NRS-01", nama: "Ns. Siska Putri, S.Kep", shift: "Pagi (08:00 - 16:00)", phone: "085211002299", status: "Aktif" },
+                { id: "NRS-02", nama: "Ns. Diana Kartika, Amd.Kep", shift: "Siang (13:00 - 21:00)", phone: "085233445566", status: "Aktif" }
+            ],
+            transaksi: [
+                { id: "TRX-20261001", tgl: "2026-10-01", pasien: "Budi Santoso", dokter: "Drg. Alisha Nicholls, Sp.KG", layanan: "Scalling / Pembersihan Karang", total: 350000, metode: "QRIS", status: "Lunas" },
+                { id: "TRX-20261002", tgl: "2026-10-02", pasien: "Andi Wijaya", dokter: "Drg. Ahmad Rizky, Sp.Ort", layanan: "Pemasangan Behel Gigi", total: 4500000, metode: "Transfer Bank", status: "Lunas" },
+                { id: "TRX-20261003", tgl: "2026-10-03", pasien: "Siti Rahma", dokter: "Drg. Maria Elena, Sp.BM", layanan: "Tambal Gigi Komposit", total: 400000, metode: "Tunai", status: "Lunas" }
+            ],
+            absensiDokter: [
+                { dokter: "Drg. Alisha Nicholls, Sp.KG", tanggal: "2026-10-03", status: "Hadir", jamMasuk: "07:55 WIB", jamKeluar: "16:05 WIB" },
+                { dokter: "Drg. Ahmad Rizky, Sp.Ort", tanggal: "2026-10-03", status: "Hadir", jamMasuk: "08:10 WIB", jamKeluar: "-" },
+                { dokter: "Drg. Maria Elena, Sp.BM", tanggal: "2026-10-03", status: "Izin", jamMasuk: "-", jamKeluar: "-" }
+            ],
+            absensiPerawat: [
+                { perawat: "Ns. Siska Putri, S.Kep", tanggal: "2026-10-03", status: "Hadir", jamMasuk: "07:45 WIB", jamKeluar: "16:00 WIB" },
+                { perawat: "Ns. Diana Kartika, Amd.Kep", tanggal: "2026-10-03", status: "Hadir", jamMasuk: "12:50 WIB", jamKeluar: "-" }
+            ],
+            pengguna: [
+                { username: "admin_alisha", nama: "Dr. Alisha Nicholls", role: "Super Admin", status: "Aktif" },
+                { username: "kasir_klinik", nama: "Bambang Tri", role: "Kasir & Staf Frontdesk", status: "Aktif" },
+                { username: "dokter_ahmad", nama: "Drg. Ahmad Rizky", role: "Dokter", status: "Aktif" }
+            ],
+            notifikasi: [
+                { id: 1, judul: "Janji Temu Baru", pesan: "Budi Santoso telah menjadwalkan ulang konsultasi jam 14:00.", tgl: "5 menit lalu", unread: true },
+                { id: 2, judul: "Stok Bahan Gigi Menipis", pesan: "Bahan Komposit A2 tersisa 2 tub.", tgl: "1 jam lalu", unread: true },
+                { id: 3, judul: "Pembayaran Diterima", pesan: "Transaksi TRX-20261002 via QRIS Lunas.", tgl: "3 jam lalu", unread: false }
+            ],
+            pengaturan: {
+                namaKlinik: "Klinik Gigi MedCare",
+                slogan: "Senyum Sehat & Indah Setiap Hari",
+                alamat: "Jl. Kesehatan Mulia No. 45, Jakarta Selatan",
+                telepon: "(021) 555-8821 / 0812-9900-1122",
+                jamOperasional: "Senin - Sabtu (08:00 - 20:00 WIB)"
+            }
+        };
+
+        function getDB() {
+            const data = localStorage.getItem('dentalClinicDB');
+            if (!data) {
+                localStorage.setItem('dentalClinicDB', JSON.stringify(initialData));
+                return initialData;
+            }
+            return JSON.parse(data);
+        }
+
+        function saveDB(data) {
+            localStorage.setItem('dentalClinicDB', JSON.stringify(data));
+            if (sheetUrl) { clearTimeout(syncTimer); syncTimer = setTimeout(syncPush, 700); }
+        }
+
+        // ===== SINKRONISASI GOOGLE SHEETS =====
+        const SHEET_DEFAULT = 'https://script.google.com/macros/s/AKfycby8iYSKKzfHlaS-7MBa58dBtc9qXRAeELyKPIQ1QcdEM98vqu8oTUbDyGAuwMdwPh2U/exec';
+        let sheetUrl = '';
+        try { sheetUrl = localStorage.getItem('sheetUrl') || SHEET_DEFAULT; } catch (e) { sheetUrl = SHEET_DEFAULT; }
+        let syncTimer = null;
+        const chip = document.createElement('button');
+        chip.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:70;border:0;border-radius:14px;padding:8px 14px;font:700 12px sans-serif;cursor:pointer;box-shadow:0 4px 14px #0003;color:#fff;background:#64748b';
+        chip.onclick = () => openSyncModal();
+        document.body.appendChild(chip);
+        function setSync(state, msg) {
+            chip.style.background = state === 'ok' ? '#16a34a' : state === 'err' ? '#dc2626' : '#64748b';
+            chip.textContent = (state === 'ok' ? '☁ ' : state === 'err' ? '⚠ ' : '⏳ ') + msg;
+            chip.title = msg;
+        }
+        setSync('idle', 'Google Sheet: belum sinkron');
+        function coerce(coll, o) {
+            const sample = (initialData[coll] && initialData[coll][0]) || {};
+            const r = {};
+            for (const k in o) {
+                const v = o[k], t = typeof sample[k];
+                r[k] = t === 'number' ? (v === '' ? 0 : Number(v)) : t === 'boolean' ? (v === true || v === 'true' || v === 'TRUE') : v;
+            }
+            return r;
+        }
+        async function sheetCall(opts) {
+            const r = await fetch(sheetUrl, opts);
+            const t = await r.text();
+            let j;
+            try { j = JSON.parse(t); } catch (e) {
+                throw new Error('Google membalas bukan data (status ' + r.status + '). Pastikan deployment: Eksekusi sebagai Saya, Akses Siapa saja, dan sudah Versi baru.');
+            }
+            if (!j.ok) throw new Error(j.error || 'Respon tidak valid');
+            return j;
+        }
+        async function syncPush() {
+            if (!sheetUrl) return;
+            setSync('busy', 'Menyimpan ke Google Sheet...');
+            try {
+                await sheetCall({ method: 'POST', body: JSON.stringify({ action: 'sync', db: getDB() }) });
+                setSync('ok', 'Tersimpan di Google Sheet');
+            } catch (e) { setSync('err', 'Gagal simpan: ' + e.message); }
+        }
+        async function syncPull() {
+            if (!sheetUrl) return;
+            setSync('busy', 'Memuat dari Google Sheet...');
+            try {
+                const j = await sheetCall({});
+                const remote = j.db || {};
+                const kosong = Object.keys(initialData).filter(k => k !== 'pengaturan').every(k => !(remote[k] && remote[k].length));
+                if (kosong) { await syncPush(); setSync('ok', 'Sheet masih kosong: data awal dikirim'); }
+                else {
+                    const db = {};
+                    for (const k in initialData) {
+                        if (k === 'pengaturan') db[k] = Object.keys(remote[k] || {}).length ? remote[k] : initialData[k];
+                        else db[k] = (remote[k] || []).map(o => coerce(k, o));
+                    }
+                    localStorage.setItem('dentalClinicDB', JSON.stringify(db));
+                    setSync('ok', 'Tersinkron dengan Google Sheet');
+                }
+                if (!document.getElementById('mainApp').classList.contains('hidden') && !document.querySelector('#modalContainer:not(.hidden)')) switchView(currentView);
+            } catch (e) { setSync('err', 'Gagal: ' + e.message); }
+        }
+        function openSyncModal() {
+            showModal(`
+                <div class="space-y-3 text-xs text-slate-800">
+                    <h3 class="font-extrabold text-base">☁ Sinkronisasi Google Sheets</h3>
+                    <p class="text-slate-500">Tempel URL Web App (berakhiran /exec) dari Apps Script.</p>
+                    <input id="sync_url" value="${sheetUrl}" class="w-full px-3 py-2.5 rounded-2xl border border-slate-200 text-[11px]">
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="syncSaveUrl()" class="px-4 py-2 rounded-2xl bg-brand-600 text-white font-bold">Simpan URL & Muat dari Sheet</button>
+                        <button onclick="syncPush().then(showSyncResult)" class="px-4 py-2 rounded-2xl bg-slate-100 font-bold">Kirim data ke Sheet</button>
+                        <button onclick="closeModal()" class="px-4 py-2 rounded-2xl bg-slate-100 font-bold">Tutup</button>
+                    </div>
+                    <pre id="sync_result" class="whitespace-pre-wrap text-[11px] text-slate-600"></pre>
+                </div>`);
+            showSyncResult();
+        }
+        function showSyncResult() { const o = document.getElementById('sync_result'); if (o) o.textContent = 'Status: ' + chip.title; }
+        async function syncSaveUrl() {
+            sheetUrl = document.getElementById('sync_url').value.trim();
+            try { localStorage.setItem('sheetUrl', sheetUrl); } catch (e) {}
+            await syncPull(); showSyncResult();
+        }
+
+        // Authentication Handlers
+        function handleLogin(e) {
+            if (e) e.preventDefault();
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            showToast('Selamat datang kembali, Admin!', 'success');
+            switchView('dashboard');
+            syncPull();
+        }
+
+        function bypassLogin() {
+            handleLogin(null);
+        }
+
+        function handleLogout() {
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            showToast('Anda telah keluar dari aplikasi.', 'info');
+        }
+
+        // View Navigation Controller
+        let currentView = 'dashboard';
+        let activeChartInstances = {};
+
+        function switchView(viewName) {
+            currentView = viewName;
+
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('sidebar-item-active'));
+            const activeNav = document.getElementById(`nav-${viewName}`);
+            if (activeNav) activeNav.classList.add('sidebar-item-active');
+
+            const container = document.getElementById('content-container');
+            const db = getDB();
+
+            switch(viewName) {
+                case 'dashboard':
+                    container.innerHTML = renderDashboard(db);
+                    initDashboardCharts(db);
+                    break;
+                case 'pasien':
+                    container.innerHTML = renderPasienView(db);
+                    break;
+                case 'layanan':
+                    container.innerHTML = renderLayananView(db);
+                    break;
+                case 'transaksi':
+                    container.innerHTML = renderTransaksiView(db);
+                    break;
+                case 'rekap_pendapatan':
+                    container.innerHTML = renderRekapPendapatanView(db);
+                    break;
+                case 'dokter_data':
+                    container.innerHTML = renderDokterDataView(db);
+                    break;
+                case 'dokter_jadwal':
+                    container.innerHTML = renderDokterJadwalView(db);
+                    break;
+                case 'dokter_absensi':
+                    container.innerHTML = renderDokterAbsensiView(db);
+                    break;
+                case 'perawat_data':
+                    container.innerHTML = renderPerawatDataView(db);
+                    break;
+                case 'perawat_absensi':
+                    container.innerHTML = renderPerawatAbsensiView(db);
+                    break;
+                case 'laporan_pendapatan':
+                    container.innerHTML = renderLaporanPendapatanView(db);
+                    break;
+                case 'laporan_absensi_dokter':
+                    container.innerHTML = renderLaporanAbsensiDokterView(db);
+                    break;
+                case 'laporan_absensi_perawat':
+                    container.innerHTML = renderLaporanAbsensiPerawatView(db);
+                    break;
+                case 'laporan_ringkasan':
+                    container.innerHTML = renderLaporanRingkasanView(db);
+                    break;
+                case 'statistik':
+                    container.innerHTML = renderStatistikView(db);
+                    initStatistikCharts(db);
+                    break;
+                case 'export':
+                    container.innerHTML = renderExportView(db);
+                    break;
+                case 'pengguna':
+                    container.innerHTML = renderPenggunaView(db);
+                    break;
+                case 'notifikasi':
+                    container.innerHTML = renderNotifikasiView(db);
+                    break;
+                case 'pengaturan':
+                    container.innerHTML = renderPengaturanView(db);
+                    break;
+                default:
+                    container.innerHTML = renderDashboard(db);
+                    initDashboardCharts(db);
+            }
+        }
+
+        function toggleSubmenu(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function toggleRightPanel() {
+            const panel = document.getElementById('right-panel');
+            panel.classList.toggle('hidden');
+            panel.classList.toggle('fixed');
+            panel.classList.toggle('right-4');
+            panel.classList.toggle('top-20');
+            panel.classList.toggle('z-40');
+        }
+
+        function renderDashboard(db) {
+            const totalRevenue = db.transaksi.reduce((sum, item) => sum + item.total, 0);
+
+            return `
+                <div class="bg-gradient-to-r from-brand-600 to-blue-500 rounded-3xl p-6 text-white card-shadow relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="z-10 max-w-lg">
+                        <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold mb-3">
+                            <i class="fa-regular fa-calendar"></i> Sabtu, 3 Oktober 2026 | 13:40 WIB
+                        </div>
+                        <h2 class="text-2xl font-extrabold leading-tight">Selamat Datang, Admin Klinik Gigi!</h2>
+                        <p class="text-xs text-blue-100 mt-1 font-light leading-relaxed">
+                            Semoga harimu menyenangkan! Kelola data pasien, transaksi kasir, dan performa tim medis dengan mudah.
+                        </p>
+                    </div>
+
+                    <div class="z-10 flex items-center gap-4 bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/20">
+                        <div class="w-14 h-14 rounded-2xl bg-white text-brand-600 flex items-center justify-center text-3xl shadow-inner">
+                            <i class="fa-solid fa-tooth"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="text-xs text-blue-200 uppercase font-bold tracking-wider">STATUS KLINIK</p>
+                            <p class="font-extrabold text-sm text-white flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span> Buka (Normal)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white p-4 rounded-3xl card-shadow flex items-center justify-between border border-slate-100">
+                        <div>
+                            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">PASIEN KLINIK</p>
+                            <h3 class="text-2xl font-extrabold text-slate-800 mt-1">${db.pasien.length} <span class="text-xs font-normal text-slate-500">Orang</span></h3>
+                            <p class="text-[11px] text-emerald-500 font-semibold mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-arrow-trend-up"></i> +12% dari bulan lalu
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-brand-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-hospital-user"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-3xl card-shadow flex items-center justify-between border border-slate-100">
+                        <div>
+                            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">TOTAL PENDAPATAN</p>
+                            <h3 class="text-xl font-extrabold text-slate-800 mt-1">Rp ${totalRevenue.toLocaleString('id-ID')}</h3>
+                            <p class="text-[11px] text-emerald-500 font-semibold mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-circle-check"></i> 100% Transaksi Lunas
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-3xl card-shadow flex items-center justify-between border border-slate-100">
+                        <div>
+                            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">DOKTER & PERAWAT</p>
+                            <h3 class="text-2xl font-extrabold text-slate-800 mt-1">${db.dokter.length + db.perawat.length} <span class="text-xs font-normal text-slate-500">Staf Medis</span></h3>
+                            <p class="text-[11px] text-blue-600 font-semibold mt-1 flex items-center gap-1">
+                                <i class="fa-solid fa-user-check"></i> Semuanya Aktif
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-user-doctor"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="lg:col-span-2 bg-white p-5 rounded-3xl card-shadow border border-slate-100">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm">Grafik Revenue & Kunjungan</h3>
+                                <p class="text-xs text-slate-400">Tren pendapatan harian klinik bulan ini</p>
+                            </div>
+                            <span class="text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-xl">Okt 2026</span>
+                        </div>
+                        <div class="h-56 relative">
+                            <canvas id="dashboardRevenueChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm mb-1">Layanan Terfavorit</h3>
+                            <p class="text-xs text-slate-400 mb-4">Proporsi permintaan tindakan gigi</p>
+                            <div class="h-44 relative">
+                                <canvas id="dashboardServicesChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="text-center pt-3 border-t border-slate-100">
+                            <button onclick="switchView('layanan')" class="text-xs font-bold text-brand-600 hover:underline">
+                                Lihat Semua Layanan <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initDashboardCharts(db) {
+            if (activeChartInstances['dashRev']) activeChartInstances['dashRev'].destroy();
+            if (activeChartInstances['dashSvc']) activeChartInstances['dashSvc'].destroy();
+
+            const ctx1 = document.getElementById('dashboardRevenueChart');
+            if (ctx1) {
+                activeChartInstances['dashRev'] = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['27 Sep', '28 Sep', '29 Sep', '30 Sep', '1 Okt', '2 Okt', '3 Okt'],
+                        datasets: [{
+                            label: 'Pendapatan (Rp)',
+                            data: [1200000, 2100000, 1800000, 3200000, 3500000, 4500000, 5250000],
+                            borderColor: '#2b52f5',
+                            backgroundColor: 'rgba(43, 82, 245, 0.08)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { grid: { borderDash: [4, 4] }, ticks: { font: { size: 10 } } },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            const ctx2 = document.getElementById('dashboardServicesChart');
+            if (ctx2) {
+                activeChartInstances['dashSvc'] = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Scalling', 'Tambal Gigi', 'Behel', 'Bleaching'],
+                        datasets: [{
+                            data: [40, 25, 20, 15],
+                            backgroundColor: ['#2b52f5', '#10b981', '#a855f7', '#f59e0b']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                    }
+                });
+            }
+        }
+
+        function renderPasienView(db) {
+            const rows = db.pasien.map(p => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition-all text-xs">
+                    <td class="p-3.5 font-bold text-brand-600">${p.id}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${p.nama}</td>
+                    <td class="p-3.5 text-slate-600">${p.umur} th / ${p.gender}</td>
+                    <td class="p-3.5 text-slate-600">${p.phone}</td>
+                    <td class="p-3.5 text-slate-600 max-w-xs truncate">${p.riwayat}</td>
+                    <td class="p-3.5 text-slate-500">${p.tglKunjungan}</td>
+                    <td class="p-3.5 text-right space-x-1">
+                        <button onclick="editPasien('${p.id}')" class="text-brand-600 hover:bg-blue-50 p-2 rounded-xl" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="hapusPasien('${p.id}')" class="text-red-500 hover:bg-red-50 p-2 rounded-xl" title="Hapus">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">👥 Data Pasien Klinik Gigi</h2>
+                            <p class="text-xs text-slate-400">Daftar rekam medis dan identitas pasien terdaftar</p>
+                        </div>
+                        <button onclick="openAddPasienModal()" class="bg-brand-600 text-white text-xs px-4 py-2.5 rounded-2xl font-bold shadow-md hover:bg-brand-700 transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Tambah Pasien Baru
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider border-y border-slate-100">
+                                    <th class="p-3.5">ID Pasien</th>
+                                    <th class="p-3.5">Nama Lengkap</th>
+                                    <th class="p-3.5">Umur & Gender</th>
+                                    <th class="p-3.5">No. Telepon / WA</th>
+                                    <th class="p-3.5">Riwayat Gigi</th>
+                                    <th class="p-3.5">Tgl Kunjungan</th>
+                                    <th class="p-3.5 text-right">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openAddPasienModal() {
+            showModal(`
+                <h3 class="font-bold text-base text-slate-800 mb-4">Tambah Pasien Baru</h3>
+                <form onsubmit="savePasien(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Nama Pasien</label>
+                        <input type="text" id="p_nama" required class="w-full p-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Umur (Tahun)</label>
+                            <input type="number" id="p_umur" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Jenis Kelamin</label>
+                            <select id="p_gender" class="w-full p-2.5 rounded-xl border border-slate-200">
+                                <option>Laki-laki</option>
+                                <option>Perempuan</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">No. HP / Whatsapp</label>
+                        <input type="text" id="p_phone" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Catatan / Riwayat Gigi</label>
+                        <textarea id="p_riwayat" class="w-full p-2.5 rounded-xl border border-slate-200" rows="2"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold">Simpan Pasien</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function savePasien(e) {
+            e.preventDefault();
+            const db = getDB();
+            const newP = {
+                id: `PSG-00${db.pasien.length + 1}`,
+                nama: document.getElementById('p_nama').value,
+                umur: document.getElementById('p_umur').value,
+                gender: document.getElementById('p_gender').value,
+                phone: document.getElementById('p_phone').value,
+                riwayat: document.getElementById('p_riwayat').value || 'Pemeriksaan Rutin',
+                tglKunjungan: new Date().toISOString().split('T')[0]
+            };
+            db.pasien.unshift(newP);
+            saveDB(db);
+            closeModal();
+            showToast('Pasien berhasil ditambahkan!', 'success');
+            switchView('pasien');
+        }
+
+        function hapusPasien(id) {
+            const db = getDB();
+            db.pasien = db.pasien.filter(p => p.id !== id);
+            saveDB(db);
+            showToast('Data pasien dihapus.', 'info');
+            switchView('pasien');
+        }
+
+        function editPasien(id) {
+            const db = getDB();
+            const p = db.pasien.find(item => item.id === id);
+            if (!p) return;
+
+            showModal(`
+                <h3 class="font-bold text-base text-slate-800 mb-4">Edit Data Pasien (${p.id})</h3>
+                <form onsubmit="updatePasien(event, '${p.id}')" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Nama Pasien</label>
+                        <input type="text" id="edit_p_nama" value="${p.nama}" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Umur (Tahun)</label>
+                            <input type="number" id="edit_p_umur" value="${p.umur}" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Jenis Kelamin</label>
+                            <select id="edit_p_gender" class="w-full p-2.5 rounded-xl border border-slate-200">
+                                <option ${p.gender === 'Laki-laki' ? 'selected' : ''}>Laki-laki</option>
+                                <option ${p.gender === 'Perempuan' ? 'selected' : ''}>Perempuan</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">No. HP / WA</label>
+                        <input type="text" id="edit_p_phone" value="${p.phone}" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Catatan / Riwayat Gigi</label>
+                        <textarea id="edit_p_riwayat" class="w-full p-2.5 rounded-xl border border-slate-200" rows="2">${p.riwayat}</textarea>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold">Update Pasien</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function updatePasien(e, id) {
+            e.preventDefault();
+            const db = getDB();
+            const index = db.pasien.findIndex(p => p.id === id);
+            if (index !== -1) {
+                db.pasien[index].nama = document.getElementById('edit_p_nama').value;
+                db.pasien[index].umur = document.getElementById('edit_p_umur').value;
+                db.pasien[index].gender = document.getElementById('edit_p_gender').value;
+                db.pasien[index].phone = document.getElementById('edit_p_phone').value;
+                db.pasien[index].riwayat = document.getElementById('edit_p_riwayat').value;
+                saveDB(db);
+                closeModal();
+                showToast('Data pasien diperbarui!', 'success');
+                switchView('pasien');
+            }
+        }
+
+        function renderLayananView(db) {
+            const cards = db.layanan.map(l => `
+                <div class="bg-white p-4 rounded-3xl card-shadow border border-slate-100 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600 bg-brand-50 px-2.5 py-1 rounded-lg">${l.kategori}</span>
+                            <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">${l.status}</span>
+                        </div>
+                        <h4 class="font-extrabold text-slate-800 text-sm mb-1">${l.nama}</h4>
+                        <p class="text-xs text-slate-400 flex items-center gap-1 mb-3">
+                            <i class="fa-regular fa-clock"></i> Estimasi: ${l.durasi} Menit
+                        </p>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span class="font-extrabold text-base text-slate-900">Rp ${l.harga.toLocaleString('id-ID')}</span>
+                        <button onclick="openEditLayananModal('${l.id}')" class="text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-xl hover:bg-brand-100">Edit Tarif</button>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center bg-white p-5 rounded-3xl card-shadow">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">🦷 Layanan Gigi Klinik</h2>
+                            <p class="text-xs text-slate-400">Daftar jenis perawatan, tarif, dan durasi pengerjaan</p>
+                        </div>
+                        <button onclick="openAddLayananModal()" class="bg-brand-600 text-white text-xs px-4 py-2.5 rounded-2xl font-bold shadow-md hover:bg-brand-700">
+                            <i class="fa-solid fa-plus mr-1"></i> Tambah Layanan
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${cards}
+                    </div>
+                </div>
+            `;
+        }
+
+        function openAddLayananModal() {
+            showModal(`
+                <h3 class="font-bold text-base text-slate-800 mb-4">Tambah Layanan Gigi Baru</h3>
+                <form onsubmit="saveLayanan(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Nama Layanan</label>
+                        <input type="text" id="l_nama" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Kategori</label>
+                            <select id="l_kategori" class="w-full p-2.5 rounded-xl border border-slate-200">
+                                <option>Perawatan Rutin</option>
+                                <option>Restorasi</option>
+                                <option>Ortodontik</option>
+                                <option>Estetika</option>
+                                <option>Endodontik</option>
+                                <option>Bedah Mulut</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-bold mb-1">Durasi (Menit)</label>
+                            <input type="number" id="l_durasi" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Harga (Rp)</label>
+                        <input type="number" id="l_harga" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold">Simpan Layanan</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function saveLayanan(e) {
+            e.preventDefault();
+            const db = getDB();
+            db.layanan.push({
+                id: `LYN-0${db.layanan.length + 1}`,
+                nama: document.getElementById('l_nama').value,
+                kategori: document.getElementById('l_kategori').value,
+                durasi: document.getElementById('l_durasi').value,
+                harga: parseInt(document.getElementById('l_harga').value),
+                status: "Aktif"
+            });
+            saveDB(db);
+            closeModal();
+            showToast('Layanan gigi baru berhasil dibuat!', 'success');
+            switchView('layanan');
+        }
+
+        function openEditLayananModal(id) {
+            const db = getDB();
+            const l = db.layanan.find(item => item.id === id);
+            if (!l) return;
+
+            showModal(`
+                <h3 class="font-bold text-base text-slate-800 mb-4">Edit Tarif Layanan (${l.nama})</h3>
+                <form onsubmit="updateLayanan(event, '${l.id}')" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Nama Layanan</label>
+                        <input type="text" id="edit_l_nama" value="${l.nama}" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-slate-600 font-bold mb-1">Harga (Rp)</label>
+                        <input type="number" id="edit_l_harga" value="${l.harga}" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold">Update Tarif</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function updateLayanan(e, id) {
+            e.preventDefault();
+            const db = getDB();
+            const index = db.layanan.findIndex(l => l.id === id);
+            if (index !== -1) {
+                db.layanan[index].nama = document.getElementById('edit_l_nama').value;
+                db.layanan[index].harga = parseInt(document.getElementById('edit_l_harga').value);
+                saveDB(db);
+                closeModal();
+                showToast('Tarif layanan berhasil diperbarui!', 'success');
+                switchView('layanan');
+            }
+        }
+
+        function renderTransaksiView(db) {
+            const historyRows = db.transaksi.map(t => `
+                <tr class="border-b border-slate-100 hover:bg-slate-50 transition-all text-xs">
+                    <td class="p-3 font-bold text-brand-600">${t.id}</td>
+                    <td class="p-3 text-slate-500">${t.tgl}</td>
+                    <td class="p-3 font-bold text-slate-800">${t.pasien}</td>
+                    <td class="p-3 text-slate-600">${t.layanan}</td>
+                    <td class="p-3 font-extrabold text-slate-800">Rp ${t.total.toLocaleString('id-ID')}</td>
+                    <td class="p-3 text-slate-600">${t.metode}</td>
+                    <td class="p-3"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold text-[10px]">${t.status}</span></td>
+                    <td class="p-3 text-right">
+                        <button onclick="cetakInvoiceModal('${t.id}')" class="text-brand-600 font-bold bg-brand-50 px-2.5 py-1 rounded-xl text-[11px] hover:bg-brand-100">
+                            <i class="fa-solid fa-print mr-1"></i> Cetak
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100">
+                        <h3 class="font-extrabold text-base text-slate-800 mb-1">💳 Form Pembayaran Kasir</h3>
+                        <p class="text-xs text-slate-400 mb-4">Input pembayaran perawatan gigi pasien</p>
+
+                        <form onsubmit="prosesTransaksi(event)" class="space-y-3 text-xs">
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Pilih Pasien</label>
+                                <select id="tx_pasien" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                                    ${db.pasien.map(p => `<option value="${p.nama}">${p.nama} (${p.id})</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Pilih Dokter Penanggung Jawab</label>
+                                <select id="tx_dokter" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                                    ${db.dokter.map(d => `<option value="${d.nama}">${d.nama}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Pilih Layanan Gigi</label>
+                                <select id="tx_layanan" onchange="calculateTotalTx(this.value)" required class="w-full p-2.5 rounded-xl border border-slate-200">
+                                    <option value="">-- Pilih Layanan --</option>
+                                    ${db.layanan.map(l => `<option value="${l.harga}">${l.nama} - Rp ${l.harga.toLocaleString('id-ID')}</option>`).join('')}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block font-bold text-slate-600 mb-1">Metode Pembayaran</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <label class="border p-2 rounded-xl text-center cursor-pointer font-bold hover:bg-slate-50 text-[11px]">
+                                        <input type="radio" name="tx_metode" value="Tunai" checked class="mr-1"> Tunai
+                                    </label>
+                                    <label class="border p-2 rounded-xl text-center cursor-pointer font-bold hover:bg-slate-50 text-[11px]">
+                                        <input type="radio" name="tx_metode" value="QRIS" class="mr-1"> QRIS
+                                    </label>
+                                    <label class="border p-2 rounded-xl text-center cursor-pointer font-bold hover:bg-slate-50 text-[11px]">
+                                        <input type="radio" name="tx_metode" value="Transfer Bank" class="mr-1"> Transfer
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex justify-between items-center my-3">
+                                <span class="font-bold text-slate-600">Total Tagihan:</span>
+                                <span id="tx_total_display" class="font-extrabold text-base text-brand-600">Rp 0</span>
+                            </div>
+
+                            <button type="submit" class="w-full bg-brand-600 text-white font-bold py-3 rounded-2xl shadow-md hover:bg-brand-700 transition-all text-xs">
+                                <i class="fa-solid fa-receipt mr-1"></i> Selesaikan Transaksi & Bayar
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="lg:col-span-2 bg-white p-5 rounded-3xl card-shadow border border-slate-100">
+                        <h3 class="font-extrabold text-base text-slate-800 mb-1">Riwayat Transaksi Masuk</h3>
+                        <p class="text-xs text-slate-400 mb-4">Daftar transaksi pembayaran terkonfirmasi</p>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                                        <th class="p-3">ID Transaksi</th>
+                                        <th class="p-3">Tanggal</th>
+                                        <th class="p-3">Pasien</th>
+                                        <th class="p-3">Tindakan</th>
+                                        <th class="p-3">Total</th>
+                                        <th class="p-3">Metode</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 text-right">Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${historyRows}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        let selectedPrice = 0;
+        function calculateTotalTx(val) {
+            selectedPrice = parseInt(val) || 0;
+            document.getElementById('tx_total_display').innerText = `Rp ${selectedPrice.toLocaleString('id-ID')}`;
+        }
+
+        function prosesTransaksi(e) {
+            e.preventDefault();
+            if (selectedPrice === 0) {
+                showToast('Pilih layanan gigi terlebih dahulu!', 'warning');
+                return;
+            }
+            const db = getDB();
+            const layananSelect = document.getElementById('tx_layanan');
+            const selectedLayananName = layananSelect.options[layananSelect.selectedIndex].text.split(' - ')[0];
+            const metode = document.querySelector('input[name="tx_metode"]:checked').value;
+
+            const newTx = {
+                id: `TRX-${Date.now().toString().slice(-6)}`,
+                tgl: new Date().toISOString().split('T')[0],
+                pasien: document.getElementById('tx_pasien').value,
+                dokter: document.getElementById('tx_dokter').value,
+                layanan: selectedLayananName,
+                total: selectedPrice,
+                metode: metode,
+                status: "Lunas"
+            };
+
+            db.transaksi.unshift(newTx);
+            saveDB(db);
+            showToast('Transaksi Sukses & Nota Dicetak!', 'success');
+            switchView('transaksi');
+        }
+
+        function cetakInvoiceModal(id) {
+            const db = getDB();
+            const tx = db.transaksi.find(t => t.id === id);
+            if (!tx) return;
+
+            showModal(`
+                <div class="p-2 text-slate-800 text-xs">
+                    <div class="text-center pb-3 border-b border-dashed border-slate-300">
+                        <i class="fa-solid fa-tooth text-brand-600 text-2xl mb-1"></i>
+                        <h3 class="font-extrabold text-sm uppercase">${db.pengaturan.namaKlinik}</h3>
+                        <p class="text-[10px] text-slate-500">${db.pengaturan.alamat}</p>
+                        <p class="text-[10px] text-slate-500">Telp: ${db.pengaturan.telepon}</p>
+                    </div>
+
+                    <div class="py-3 space-y-1 border-b border-dashed border-slate-300">
+                        <div class="flex justify-between"><span class="text-slate-500">No Invoice:</span> <span class="font-bold">${tx.id}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Tanggal:</span> <span>${tx.tgl}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Pasien:</span> <span class="font-bold">${tx.pasien}</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Dokter:</span> <span>${tx.dokter}</span></div>
+                    </div>
+
+                    <div class="py-3 border-b border-dashed border-slate-300 space-y-2">
+                        <div class="flex justify-between font-bold">
+                            <span>${tx.layanan}</span>
+                            <span>Rp ${tx.total.toLocaleString('id-ID')}</span>
+                        </div>
+                    </div>
+
+                    <div class="py-3 space-y-1">
+                        <div class="flex justify-between text-sm font-extrabold">
+                            <span>TOTAL BAYAR:</span>
+                            <span class="text-brand-600">Rp ${tx.total.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="flex justify-between text-[11px]">
+                            <span class="text-slate-500">Metode Bayar:</span>
+                            <span class="font-bold">${tx.metode}</span>
+                        </div>
+                    </div>
+
+                    <div class="text-center pt-3 text-[10px] text-slate-400">
+                        Terima kasih atas kunjungan Anda di Klinik Gigi MedCare!
+                    </div>
+
+                    <div class="flex gap-2 pt-4">
+                        <button onclick="closeModal()" class="w-1/2 py-2 rounded-xl bg-slate-100 font-bold text-slate-600">Tutup</button>
+                        <button onclick="window.print()" class="w-1/2 py-2 rounded-xl bg-brand-600 text-white font-bold">Cetak Invoice</button>
+                    </div>
+                </div>
+            `);
+        }
+
+        function renderRekapPendapatanView(db) {
+            const total = db.transaksi.reduce((sum, item) => sum + item.total, 0);
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 space-y-5">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">💰 Rekapitulasi Pendapatan Klinik</h2>
+                            <p class="text-xs text-slate-400">Rincian agregat pemasukan harian dan mingguan</p>
+                        </div>
+                        <span class="text-xs font-bold text-brand-600 bg-brand-50 px-3 py-1.5 rounded-xl">Bulan Oktober 2026</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total Omset Lunas</span>
+                            <h3 class="text-xl font-extrabold text-slate-800 mt-1">Rp ${total.toLocaleString('id-ID')}</h3>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Rata-Rata per Transaksi</span>
+                            <h3 class="text-xl font-extrabold text-brand-600 mt-1">Rp ${(total / (db.transaksi.length || 1)).toLocaleString('id-ID', {maximumFractionDigits: 0})}</h3>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total Volume Transaksi</span>
+                            <h3 class="text-xl font-extrabold text-emerald-600 mt-1">${db.transaksi.length} Pembayaran</h3>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDokterDataView(db) {
+            const cards = db.dokter.map(d => `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-2xl bg-blue-100 text-brand-600 flex items-center justify-center font-extrabold text-xl shadow-sm">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">${d.status}</span>
+                        <h4 class="font-extrabold text-slate-800 text-sm mt-1">${d.nama}</h4>
+                        <p class="text-xs text-brand-600 font-semibold">${d.spesialis}</p>
+                        <p class="text-[11px] text-slate-400 mt-1">${d.sip}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center bg-white p-5 rounded-3xl card-shadow">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">👨‍⚕️ Data Dokter Gigi</h2>
+                            <p class="text-xs text-slate-400">Daftar dokter spesialis dan umum terdaftar</p>
+                        </div>
+                        <button onclick="showToast('Fitur Tambah Dokter Aktif', 'info')" class="bg-brand-600 text-white text-xs px-4 py-2.5 rounded-2xl font-bold">
+                            <i class="fa-solid fa-plus mr-1"></i> Tambah Dokter
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${cards}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDokterJadwalView(db) {
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 space-y-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-slate-800">📅 Jadwal Praktik Mingguan Dokter</h2>
+                        <p class="text-xs text-slate-400">Pembagian shift dokter gigi klinik</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div class="font-extrabold text-brand-600 mb-2 border-b pb-1">Senin - Rabu</div>
+                            <p class="font-bold text-slate-800">Drg. Alisha Nicholls, Sp.KG</p>
+                            <p class="text-slate-500">08:00 - 15:00 WIB</p>
+                            <p class="font-bold text-slate-800 mt-2">Drg. Ahmad Rizky, Sp.Ort</p>
+                            <p class="text-slate-500">13:00 - 20:00 WIB</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div class="font-extrabold text-brand-600 mb-2 border-b pb-1">Kamis - Jumat</div>
+                            <p class="font-bold text-slate-800">Drg. Maria Elena, Sp.BM</p>
+                            <p class="text-slate-500">09:00 - 16:00 WIB</p>
+                            <p class="font-bold text-slate-800 mt-2">Drg. Alisha Nicholls, Sp.KG</p>
+                            <p class="text-slate-500">13:00 - 20:00 WIB</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div class="font-extrabold text-brand-600 mb-2 border-b pb-1">Sabtu</div>
+                            <p class="font-bold text-slate-800">Drg. Ahmad Rizky, Sp.Ort</p>
+                            <p class="text-slate-500">08:00 - 16:00 WIB</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDokterAbsensiView(db) {
+            const rows = db.absensiDokter.map(a => `
+                <tr class="border-b border-slate-100 text-xs">
+                    <td class="p-3.5 font-bold text-slate-800">${a.dokter}</td>
+                    <td class="p-3.5 text-slate-500">${a.tanggal}</td>
+                    <td class="p-3.5"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold">${a.status}</span></td>
+                    <td class="p-3.5 text-slate-600">${a.jamMasuk}</td>
+                    <td class="p-3.5 text-slate-600">${a.jamKeluar}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">📋 Absensi Kehadiran Dokter Hari Ini</h2>
+                            <p class="text-xs text-slate-400">Pencatatan waktu jam masuk dan keluar</p>
+                        </div>
+                        <button onclick="catatAbsensiDokterModal()" class="bg-brand-600 text-white text-xs px-4 py-2 rounded-xl font-bold">
+                            Catat Kehadiran
+                        </button>
+                    </div>
+
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase">
+                                <th class="p-3.5">Nama Dokter</th>
+                                <th class="p-3.5">Tanggal</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5">Jam Masuk</th>
+                                <th class="p-3.5">Jam Keluar</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function catatAbsensiDokterModal() {
+            const db = getDB();
+            showModal(`
+                <h3 class="font-bold text-base text-slate-800 mb-4">Catat Absensi Dokter</h3>
+                <form onsubmit="saveAbsensiDokter(event)" class="space-y-3 text-xs">
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Dokter</label>
+                        <select id="abs_dokter" class="w-full p-2.5 rounded-xl border border-slate-200">
+                            ${db.dokter.map(d => `<option>${d.nama}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Status Kehadiran</label>
+                        <select id="abs_status" class="w-full p-2.5 rounded-xl border border-slate-200">
+                            <option>Hadir</option>
+                            <option>Izin</option>
+                            <option>Sakit</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2 pt-3">
+                        <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-100 font-bold">Batal</button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white font-bold">Simpan Presensi</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function saveAbsensiDokter(e) {
+            e.preventDefault();
+            const db = getDB();
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} WIB`;
+
+            db.absensiDokter.unshift({
+                dokter: document.getElementById('abs_dokter').value,
+                tanggal: now.toISOString().split('T')[0],
+                status: document.getElementById('abs_status').value,
+                jamMasuk: timeStr,
+                jamKeluar: "-"
+            });
+            saveDB(db);
+            closeModal();
+            showToast('Kehadiran dokter berhasil diinput!', 'success');
+            switchView('dokter_absensi');
+        }
+
+        function renderPerawatDataView(db) {
+            const cards = db.perawat.map(n => `
+                <div class="bg-white p-5 rounded-3xl card-shadow border border-slate-100 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center font-extrabold text-xl">
+                        <i class="fa-solid fa-user-nurse"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-slate-800 text-sm">${n.nama}</h4>
+                        <p class="text-xs text-slate-500">${n.shift}</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">${n.phone}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="space-y-4">
+                    <div class="bg-white p-5 rounded-3xl card-shadow">
+                        <h2 class="text-base font-extrabold text-slate-800">👩‍⚕️ Data Perawat Klinik</h2>
+                        <p class="text-xs text-slate-400">Daftar perawat assisten klinik gigi</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${cards}</div>
+                </div>
+            `;
+        }
+
+        function renderPerawatAbsensiView(db) {
+            const rows = db.absensiPerawat.map(a => `
+                <tr class="border-b border-slate-100 text-xs">
+                    <td class="p-3.5 font-bold text-slate-800">${a.perawat}</td>
+                    <td class="p-3.5 text-slate-500">${a.tanggal}</td>
+                    <td class="p-3.5"><span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md font-bold">${a.status}</span></td>
+                    <td class="p-3.5 text-slate-600">${a.jamMasuk}</td>
+                    <td class="p-3.5 text-slate-600">${a.jamKeluar}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">📋 Absensi Kehadiran Perawat</h2>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase">
+                                <th class="p-3.5">Nama Perawat</th>
+                                <th class="p-3.5">Tanggal</th>
+                                <th class="p-3.5">Status</th>
+                                <th class="p-3.5">Jam Masuk</th>
+                                <th class="p-3.5">Jam Keluar</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderLaporanPendapatanView(db) {
+            const total = db.transaksi.reduce((s, i) => s + i.total, 0);
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-base font-extrabold text-slate-800">📊 Laporan Akhir Full Pendapatan</h2>
+                            <p class="text-xs text-slate-400">Total Transaksi Lunas: Rp ${total.toLocaleString('id-ID')}</p>
+                        </div>
+                        <button onclick="window.print()" class="bg-slate-800 text-white text-xs px-3.5 py-2 rounded-xl font-bold">
+                            <i class="fa-solid fa-print mr-1"></i> Print Laporan
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500">Rekapitulasi lengkap pemasukan kasir periode Oktober 2026.</p>
+                </div>
+            `;
+        }
+
+        function renderLaporanAbsensiDokterView(db) {
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">📊 Laporan Rekap Absensi Dokter</h2>
+                    <p class="text-xs text-slate-500">Tingkat kehadiran dokter: 96.5% bulan ini.</p>
+                </div>
+            `;
+        }
+
+        function renderLaporanAbsensiPerawatView(db) {
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">📊 Laporan Rekap Absensi Perawat</h2>
+                    <p class="text-xs text-slate-500">Tingkat kehadiran perawat: 98% bulan ini.</p>
+                </div>
+            `;
+        }
+
+        function renderLaporanRingkasanView(db) {
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">📑 Ringkasan Laporan Eksekutif</h2>
+                    <div class="p-4 bg-brand-50 rounded-2xl text-xs space-y-2 text-brand-900 border border-brand-100">
+                        <p class="font-bold">Summary Performa Oktober 2026:</p>
+                        <p>- Total Pendapatan Operasional: Rp 5.250.000</p>
+                        <p>- Layanan Terlaris: Scalling Pembersihan Karang Gigi (40%)</p>
+                        <p>- Kepuasan Pasien Terdaftar: 98% Sangat Puas</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStatistikView(db) {
+            return `
+                <div class="space-y-4">
+                    <div class="bg-white p-5 rounded-3xl card-shadow">
+                        <h2 class="text-base font-extrabold text-slate-800">📈 Analisis & Statistik Operasional</h2>
+                        <p class="text-xs text-slate-400">Metrik pertumbuhan pasien & layanan</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-white p-5 rounded-3xl card-shadow">
+                            <h3 class="font-bold text-xs text-slate-700 mb-3">Tren Kunjungan Pasien Per Minggu</h3>
+                            <div class="h-52"><canvas id="statPasienChart"></canvas></div>
+                        </div>
+                        <div class="bg-white p-5 rounded-3xl card-shadow">
+                            <h3 class="font-bold text-xs text-slate-700 mb-3">Distribusi Tindakan Dokter</h3>
+                            <div class="h-52"><canvas id="statDokterChart"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initStatistikCharts(db) {
+            if (activeChartInstances['statPasien']) activeChartInstances['statPasien'].destroy();
+            if (activeChartInstances['statDokter']) activeChartInstances['statDokter'].destroy();
+
+            const ctx1 = document.getElementById('statPasienChart');
+            if (ctx1) {
+                activeChartInstances['statPasien'] = new Chart(ctx1, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
+                        datasets: [{ label: 'Pasien Kunjungan', data: [45, 60, 52, 78], backgroundColor: '#2b52f5' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            const ctx2 = document.getElementById('statDokterChart');
+            if (ctx2) {
+                activeChartInstances['statDokter'] = new Chart(ctx2, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Drg. Alisha', 'Drg. Ahmad', 'Drg. Maria'],
+                        datasets: [{ data: [40, 35, 25], backgroundColor: ['#2b52f5', '#10b981', '#f59e0b'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        function renderExportView(db) {
+            return `
+                <div class="bg-white p-6 rounded-3xl card-shadow max-w-xl mx-auto space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">📥 Export Data & Laporan</h2>
+                    <p class="text-xs text-slate-400">Unduh data laporan klinik ke dalam format Excel CSV atau PDF</p>
+
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Pilih Jenis Laporan</label>
+                            <select id="export_type" class="w-full p-2.5 rounded-xl border border-slate-200">
+                                <option value="pasien">Data Pasien Klinik</option>
+                                <option value="transaksi">Data Transaksi & Pendapatan</option>
+                                <option value="layanan">Daftar Layanan Gigi</option>
+                            </select>
+                        </div>
+
+                        <button onclick="downloadCSV()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-2xl shadow-md hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 mt-4">
+                            <i class="fa-solid fa-file-excel"></i> Unduh File CSV Excel
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function downloadCSV() {
+            const db = getDB();
+            const type = document.getElementById('export_type').value;
+            let csvContent = "data:text/csv;charset=utf-8,";
+
+            if (type === 'pasien') {
+                csvContent += "ID,Nama,Umur,Gender,Phone,Riwayat,TglKunjungan\n";
+                db.pasien.forEach(p => {
+                    csvContent += `${p.id},"${p.nama}",${p.umur},${p.gender},${p.phone},"${p.riwayat}",${p.tglKunjungan}\n`;
+                });
+            } else if (type === 'transaksi') {
+                csvContent += "ID,Tanggal,Pasien,Dokter,Layanan,Total,Metode,Status\n";
+                db.transaksi.forEach(t => {
+                    csvContent += `${t.id},${t.tgl},"${t.pasien}","${t.dokter}","${t.layanan}",${t.total},${t.metode},${t.status}\n`;
+                });
+            } else {
+                csvContent += "ID,Nama,Kategori,Durasi,Harga,Status\n";
+                db.layanan.forEach(l => {
+                    csvContent += `${l.id},"${l.nama}",${l.kategori},${l.durasi},${l.harga},${l.status}\n`;
+                });
+            }
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Laporan_Klinik_${type}_2026.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast('File CSV Laporan berhasil diunduh!', 'success');
+        }
+
+        function renderPenggunaView(db) {
+            const rows = db.pengguna.map(u => `
+                <tr class="border-b border-slate-100 text-xs">
+                    <td class="p-3.5 font-bold text-brand-600">${u.username}</td>
+                    <td class="p-3.5 font-bold text-slate-800">${u.nama}</td>
+                    <td class="p-3.5"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-bold">${u.role}</span></td>
+                    <td class="p-3.5 text-emerald-600 font-bold">${u.status}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">👤 Pengguna Akses Admin & Staf</h2>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-[11px] font-bold uppercase">
+                                <th class="p-3.5">Username</th>
+                                <th class="p-3.5">Nama Staf</th>
+                                <th class="p-3.5">Role Access</th>
+                                <th class="p-3.5">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderNotifikasiView(db) {
+            const items = db.notifikasi.map(n => `
+                <div class="p-4 rounded-2xl ${n.unread ? 'bg-blue-50/60 border border-blue-100' : 'bg-slate-50'} flex justify-between items-start">
+                    <div>
+                        <h4 class="font-extrabold text-xs text-slate-800">${n.judul}</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">${n.pesan}</p>
+                        <span class="text-[10px] text-slate-400 mt-2 block">${n.tgl}</span>
+                    </div>
+                    ${n.unread ? `<span class="w-2 h-2 rounded-full bg-brand-600"></span>` : ''}
+                </div>
+            `).join('');
+
+            return `
+                <div class="bg-white p-5 rounded-3xl card-shadow space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">🔔 Pusat Notifikasi Klinik</h2>
+                    <div class="space-y-2">${items}</div>
+                </div>
+            `;
+        }
+
+        function renderPengaturanView(db) {
+            const p = db.pengaturan;
+            return `
+                <div class="bg-white p-6 rounded-3xl card-shadow max-w-xl mx-auto space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">⚙️ Pengaturan Profil Klinik Gigi</h2>
+
+                    <form onsubmit="saveSettings(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Nama Klinik</label>
+                            <input type="text" id="set_nama" value="${p.namaKlinik}" class="w-full p-2.5 rounded-xl border border-slate-200 font-bold">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Slogan / Tagline</label>
+                            <input type="text" id="set_slogan" value="${p.slogan}" class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">Alamat Lengkap</label>
+                            <input type="text" id="set_alamat" value="${p.alamat}" class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-600 mb-1">No Telepon / Kontak</label>
+                            <input type="text" id="set_telepon" value="${p.telepon}" class="w-full p-2.5 rounded-xl border border-slate-200">
+                        </div>
+
+                        <button type="submit" class="w-full bg-brand-600 text-white font-bold py-3 rounded-2xl shadow-md hover:bg-brand-700 transition-all mt-4">
+                            Simpan Perubahan Pengaturan
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            const db = getDB();
+            db.pengaturan = {
+                namaKlinik: document.getElementById('set_nama').value,
+                slogan: document.getElementById('set_slogan').value,
+                alamat: document.getElementById('set_alamat').value,
+                telepon: document.getElementById('set_telepon').value
+            };
+            saveDB(db);
+            showToast('Pengaturan klinik berhasil disimpan!', 'success');
+        }
+
+        function openGasModal() { openSyncModal(); }
+
+        function copyGasCode() {
+            const area = document.getElementById('gas_code_area');
+            area.select();
+            document.execCommand('copy');
+            showToast('Kode Google Apps Script disalin ke clipboard!', 'success');
+        }
+
+        function handleGlobalSearch(query) {
+            if (!query.trim()) return;
+            const db = getDB();
+            const q = query.toLowerCase();
+
+            const foundPasien = db.pasien.filter(p => p.nama.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
+            const foundDokter = db.dokter.filter(d => d.nama.toLowerCase().includes(q));
+
+            if (foundPasien.length > 0) {
+                switchView('pasien');
+            } else if (foundDokter.length > 0) {
+                switchView('dokter_data');
+            }
+        }
+
+        function showModal(contentHtml) {
+            const modal = document.getElementById('modalContainer');
+            const body = document.getElementById('modalContent');
+            body.innerHTML = contentHtml;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modalContainer');
+            modal.classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let bg = 'bg-slate-800';
+            if (type === 'success') bg = 'bg-emerald-600';
+            if (type === 'warning') bg = 'bg-amber-500';
+
+            toast.className = `${bg} text-white text-xs px-4 py-3 rounded-2xl shadow-xl pointer-events-auto flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${message}`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.onload = function() {
+            getDB();
+        };
+    </script>
+</body>
+</html>
