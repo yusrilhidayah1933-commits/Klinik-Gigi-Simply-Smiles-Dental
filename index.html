@@ -132,6 +132,13 @@ const initialData={
  jadwalPerawat:[
   {id:"JPR-001",perawat:"Ns. Siska Putri, S.Kep",tanggal:"2026-10-05",shift:SHIFT_N[0],info:"Jadwal Normal",tukarDengan:"-",keterangan:""},
   {id:"JPR-002",perawat:"Ns. Diana Kartika, Amd.Kep",tanggal:"2026-10-06",shift:SHIFT_N[1],info:"Tukar Shift",tukarDengan:"Ns. Siska Putri, S.Kep",keterangan:"Tukar shift, ada keperluan keluarga"}],
+ reservasi:[
+  {id:"RSV-001",tanggal:"2026-10-06",jam:"10:00",nama:"Rina Marlina",phone:"081377788899",dokter:A,layanan:"Scalling / Pembersihan Karang",status:"Terkonfirmasi",catatan:""},
+  {id:"RSV-002",tanggal:"2026-10-06",jam:"15:30",nama:"Joko Prasetyo",phone:"082155566677",dokter:R,layanan:"Pemasangan Behel Gigi",status:"Menunggu",catatan:"Konsultasi awal"}],
+ pembelianObat:[
+  {id:"OBT-001",tanggal:"2026-10-01",obat:"Komposit A2",supplier:"Apotek Sehat",jumlah:5,satuan:"Tube",harga:250000,total:1250000,catatan:""},
+  {id:"OBT-002",tanggal:"2026-10-02",obat:"Anestesi Lidocaine",supplier:"Dental Supply",jumlah:10,satuan:"Box",harga:180000,total:1800000,catatan:""},
+  {id:"OBT-003",tanggal:"2026-10-03",obat:"Komposit A2",supplier:"Apotek Sehat",jumlah:3,satuan:"Tube",harga:250000,total:750000,catatan:"Stok menipis"}],
  transaksi:[
   {id:"TRX-20261001",tgl:"2026-10-01",pasien:"Budi Santoso",dokter:A,layanan:"Scalling / Pembersihan Karang",total:350000,metode:"QRIS",status:"Lunas"},
   {id:"TRX-20261002",tgl:"2026-10-02",pasien:"Andi Wijaya",dokter:R,layanan:"Pemasangan Behel Gigi",total:4500000,metode:"Transfer Bank",status:"Lunas"},
@@ -153,7 +160,7 @@ const initialData={
   {id:3,judul:"Pembayaran Diterima",pesan:"Transaksi TRX-20261002 via QRIS Lunas.",tgl:"3 jam lalu",unread:false}],
  pengaturan:{namaKlinik:"Klinik Gigi Simply Smiles Dental",slogan:"Senyum Sehat & Indah Setiap Hari",alamat:"Jl. Kesehatan Mulia No. 45, Jakarta Selatan",telepon:"(021) 555-8821 / 0812-9900-1122",jamOperasional:"Senin - Sabtu (08:00 - 20:00 WIB)"}
 };
-const NEWK=['jadwalDokter','jadwalPerawat'];
+const NEWK=['jadwalDokter','jadwalPerawat','pembelianObat','reservasi'];
 
 function mig(db){let ch=false;
  for(const k in initialData)if(db[k]===undefined){db[k]=JSON.parse(JSON.stringify(initialData[k]));ch=true}
@@ -221,27 +228,41 @@ function login(e){if(e)e.preventDefault();$('loginScreen').classList.add('hidden
 function logout(){$('mainApp').classList.add('hidden');$('loginScreen').classList.remove('hidden')}
 function toggleRight(){const p=$('right');['hidden','fixed','right-4','top-20','z-40','shadow-2xl'].forEach(c=>p.classList.toggle(c))}
 
-const NAV=[['dashboard','fa-house','Dashboard'],['pasien','fa-user-group','Pasien'],['layanan','fa-teeth-open','Layanan Gigi'],
- ['Pendapatan','fa-wallet',[['transaksi','Kasir & Transaksi'],['rekap_pendapatan','Rekap Pendapatan']]],
+const NAV=[['dashboard','fa-house','Dashboard'],['pasien','fa-user-group','Pasien'],['reservasi','fa-calendar-check','Reservasi'],['layanan','fa-teeth-open','Layanan Gigi'],
+ ['Pendapatan','fa-wallet',[['transaksi','Kasir & Transaksi'],['pendapatan_dokter','Pendapatan per Dokter'],['rekap_pendapatan','Rekap Pendapatan']]],
  ['Dokter','fa-user-doctor',[['dokter_data','Data Dokter'],['dokter_jadwal','Jadwal Praktik'],['dokter_absensi','Absensi Dokter']]],
  ['Perawat','fa-user-nurse',[['perawat_data','Data Perawat'],['perawat_jadwal','Jadwal Perawat'],['perawat_absensi','Absensi Perawat']]],
+ ['Obat','fa-pills',[['obat_beli','Pembelian Obat'],['obat_rekap','Rekap Obat']]],
  ['Laporan Akhir','fa-file-invoice',[['laporan_pendapatan','Full Pendapatan'],['laporan_absensi_dokter','Full Absensi Dokter'],['laporan_absensi_perawat','Full Absensi Perawat'],['laporan_ringkasan','Ringkasan Eksekutif']]],
  ['statistik','fa-chart-line','Statistik'],['export','fa-file-export','Export Laporan'],['pengguna','fa-users-gear','Pengguna'],['notifikasi','fa-bell','Notifikasi'],['pengaturan','fa-gear','Pengaturan']];
 function buildNav(){$('nav').innerHTML=NAV.map(n=>Array.isArray(n[2])?
  `<div><button onclick="this.nextElementSibling.classList.toggle('hidden')" class="nv justify-between"><span class="flex items-center gap-3"><i class="fa-solid ${n[1]} w-5 text-center"></i><span class="hidden md:inline">${n[0]}</span></span><i class="fa-solid fa-chevron-down text-xs hidden md:inline"></i></button>
  <div class="sub hidden pl-8 space-y-1 mt-1">${n[2].map(s=>`<a href="#" id="nav-${s[0]}" onclick="go('${s[0]}')" class="block py-2 px-3 rounded-xl text-xs text-gold-300 hover:text-white">${s[1]}</a>`).join('')}</div></div>`
  :`<a href="#" id="nav-${n[0]}" onclick="go('${n[0]}')" class="nv"><i class="fa-solid ${n[1]} w-5 text-center"></i><span class="hidden md:inline">${n[2]}</span></a>`).join('')}
-function buildRight(){const d=new Date(),f=new Date(d.getFullYear(),d.getMonth(),1).getDay(),n=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
- let c='<span></span>'.repeat(f);for(let i=1;i<=n;i++)c+=`<span class="py-1.5 rounded-xl ${i===d.getDate()?'cal-on':''}">${i}</span>`;
- const ap=[['Scalling Gigi','Budi Santoso','09:00','brand-600'],['Tambal Komposit','Siti Rahma','10:30','gold-500'],['Konsultasi Behel','Andi Wijaya','13:15','brand-500']];
+let calM=new Date(),calSel=today(),rng={a:'',b:''};calM.setDate(1);
+function calNav(n){calM=new Date(calM.getFullYear(),calM.getMonth()+n,1);buildRight()}
+function calPick(d){calSel=d;buildRight()}
+function buildRight(){const db=getDB(),y=calM.getFullYear(),m=calM.getMonth(),f=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate(),td=today(),
+ has=new Set([...db.pasien.map(p=>p.tglKunjungan),...db.transaksi.map(t=>t.tgl),...db.reservasi.filter(r=>r.status!=='Batal').map(r=>r.tanggal)]);
+ let c='<span></span>'.repeat(f);
+ for(let i=1;i<=n;i++){const d=lokal(new Date(y,m,i));
+  c+=`<button onclick="calPick('${d}')" class="py-1.5 rounded-xl relative ${d===calSel?'cal-on':d===td?'ring-1 ring-brand-600 text-brand-600 font-bold':'hover:bg-gold-100'}">${i}${has.has(d)&&d!==calSel?'<b class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-gold-500"></b>':''}</button>`}
+ const rs=db.reservasi.filter(r=>r.tanggal===calSel&&r.status!=='Batal').sort((a,b)=>a.jam>b.jam?1:-1),pv=db.pasien.filter(p=>p.tglKunjungan===calSel),tr=db.transaksi.filter(t=>t.tgl===calSel);
  $('right').innerHTML=`<div class="bg-brand-600 text-white p-4 rounded-2xl mb-5 relative overflow-hidden"><div class="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-gold-400/20"></div>
  <span class="text-[10px] tracking-wider uppercase font-bold text-gold-400">PROFIL ADMIN</span>
- <div class="flex items-center gap-3 mt-2"><img class="logo w-12 h-12 rounded-full border-2 border-gold-400" src="${LOGO}"><div><h3 class="font-bold text-sm">Dr. Alisha Nicholls</h3><p class="text-[11px] text-gold-300">Kepala Klinik Gigi</p></div></div></div>
- <div class="flex justify-between mb-3"><h4 class="font-bold text-xs uppercase tracking-wider">Jadwal Kalender</h4><span class="bg-brand-50 text-brand-600 text-xs px-2.5 py-1 rounded-lg font-bold">${d.toLocaleDateString('id-ID',{month:'long',year:'numeric'})}</span></div>
+ <div class="flex items-center gap-3 mt-2"><img class="w-12 h-12 rounded-full border-2 border-gold-400" src="${LOGO}"><div><h3 class="font-bold text-sm">Dr. Alisha Nicholls</h3><p class="text-[11px] text-gold-300">Kepala Klinik Gigi</p></div></div></div>
+ <div class="flex items-center justify-between mb-3"><button onclick="calNav(-1)" class="ic text-brand-600"><i class="fa-solid fa-chevron-left"></i></button>
+ <span class="bg-brand-50 text-brand-600 text-xs px-2.5 py-1 rounded-lg font-bold">${calM.toLocaleDateString('id-ID',{month:'long',year:'numeric'})}</span>
+ <button onclick="calNav(1)" class="ic text-brand-600"><i class="fa-solid fa-chevron-right"></i></button></div>
  <div class="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-400 mb-1"><span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span></div>
- <div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-600 mb-5">${c}</div>
- <h4 class="font-bold text-xs uppercase tracking-wider mb-3">Janji Temu Hari Ini</h4><div class="space-y-2.5 text-xs">
- ${ap.map(a=>`<div class="p-2.5 rounded-xl bg-gold-100/60 border-l-4 border-${a[3]} flex justify-between"><div><p class="font-bold">${a[0]}</p><p class="text-[11px] text-slate-500">Pasien: ${a[1]}</p></div><span class="text-[10px] font-bold text-brand-600">${a[2]} WIB</span></div>`).join('')}</div>`}
+ <div class="grid grid-cols-7 gap-1 text-center text-xs text-slate-600 mb-2">${c}</div>
+ <button onclick="calM=new Date();calM.setDate(1);calSel=today();buildRight()" class="text-[11px] font-bold text-brand-600 mb-4">Kembali ke hari ini</button>
+ ${rs.length?`<h4 class="font-bold text-xs uppercase tracking-wider mb-2">Reservasi</h4><div class="space-y-2 text-xs mb-4">${rs.map(r=>`<div class="p-2.5 rounded-xl bg-brand-50 border-l-4 border-gold-500 flex justify-between gap-2"><div><p class="font-bold">${r.nama}</p><p class="text-[11px] text-slate-500">${r.dokter}</p></div><span class="text-[10px] font-bold text-brand-600">${r.jam}</span></div>`).join('')}</div>`:''}
+ <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-xs uppercase tracking-wider">Kunjungan ${new Date(calSel+'T00:00').toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}</h4></div>
+ <div class="space-y-2 text-xs">${pv.map(p=>`<div class="p-2.5 rounded-xl bg-gold-100/60 border-l-4 border-brand-600"><p class="font-bold">${p.nama}</p><p class="text-[11px] text-slate-500">${p.riwayat}</p></div>`).join('')||'<p class="text-slate-400">Belum ada pasien tercatat</p>'}
+ ${tr.length?`<p class="text-[11px] font-bold text-brand-600">${tr.length} transaksi · ${rp(tr.reduce((a,t)=>a+t.total,0))}</p>`:''}
+ <button onclick="openForm('reservasi',null,{tanggal:calSel})" class="btn-g w-full bg-gold-100 text-brand-700"><i class="fa-solid fa-calendar-plus mr-1"></i> Tambah Reservasi di Tanggal Ini</button>
+ <button onclick="openForm('pasien',null,{tglKunjungan:calSel})" class="btn-p w-full"><i class="fa-solid fa-plus mr-1"></i> Tambah Pasien di Tanggal Ini</button></div>`}
 
 // ===== HELPER TAMPILAN =====
 let cur='dashboard',Q='';
@@ -249,7 +270,7 @@ const F=a=>Q?a.filter(o=>JSON.stringify(Object.values(o)).toLowerCase().includes
 const card=h=>`<div class="bg-white p-5 rounded-3xl card-shadow border border-gold-300/40">${h}</div>`;
 const head=(t,s,b='')=>`<div class="flex flex-wrap justify-between items-center gap-3 mb-4"><div><h2 class="text-base font-extrabold text-slate-800">${t}</h2><p class="text-xs text-slate-400">${s}</p></div>${b}</div>`;
 const addBtn=(c,l)=>`<button onclick="openForm('${c}')" class="btn-p"><i class="fa-solid fa-plus mr-1"></i> ${l}</button>`;
-const STC={Hadir:'emerald',Izin:'amber',Sakit:'red',Aktif:'emerald',Cuti:'amber',Nonaktif:'red','Jadwal Normal':'emerald','Tukar Shift':'amber','Tidak Berangkat':'red',Lunas:'emerald'};
+const STC={Hadir:'emerald',Izin:'amber',Sakit:'red',Aktif:'emerald',Cuti:'amber',Nonaktif:'red','Jadwal Normal':'emerald','Tukar Shift':'amber','Tidak Berangkat':'red',Lunas:'emerald',Menunggu:'amber',Terkonfirmasi:'blue',Selesai:'emerald',Batal:'red'};
 const bdg=t=>{const c=STC[t]||'slate';return `<span class="bg-${c}-100 text-${c}-700 px-2 py-0.5 rounded-md font-bold text-[10px] whitespace-nowrap">${t}</span>`};
 const grp=(a,k,f=()=>1)=>{const m={};a.forEach(x=>m[x[k]]=(m[x[k]]||0)+f(x));return m};
 const names=c=>getDB()[c].map(x=>x.nama);
@@ -262,15 +283,18 @@ function tbl(c,cols,rows,act=true){
 // ===== CRUD GENERIK =====
 // field: [key, label, type, opsi('opt' = boleh kosong / daftar pilihan), default]
 const CFG={
- pasien:{t:'Pasien',p:'PSG-',f:[['nama','Nama Pasien'],['umur','Umur (Tahun)','number'],['gender','Jenis Kelamin','select',['Laki-laki','Perempuan']],['phone','No. HP / WA'],['riwayat','Catatan / Riwayat Gigi','textarea']],
-  pre:(o,n)=>{if(n)o.tglKunjungan=today();o.riwayat=o.riwayat||'Pemeriksaan Rutin'}},
+ pasien:{t:'Pasien',p:'PSG-',f:[['nama','Nama Pasien'],['umur','Umur (Tahun)','number'],['gender','Jenis Kelamin','select',['Laki-laki','Perempuan']],['phone','No. HP / WA'],['tglKunjungan','Tanggal Kunjungan','date',,today],['riwayat','Catatan / Riwayat Gigi','textarea']],
+  pre:(o,n)=>{o.riwayat=o.riwayat||'Pemeriksaan Rutin'}},
  layanan:{t:'Layanan',p:'LYN-',f:[['nama','Nama Layanan'],['kategori','Kategori','select',['Perawatan Rutin','Restorasi','Ortodontik','Estetika','Endodontik','Bedah Mulut']],['durasi','Durasi (Menit)','number'],['harga','Harga (Rp)','number']],pre:(o,n)=>{if(n)o.status='Aktif'}},
  dokter:{t:'Dokter',p:'DR-',f:[['nama','Nama Dokter'],['sip','No. SIP'],['spesialis','Spesialis'],['phone','No. Telepon'],['shift','Shift','select',SHIFT_D],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
  jadwalDokter:{t:'Jadwal Praktik Dokter',p:'JDW-',f:[['dokter','Dokter','select',()=>names('dokter')],['hari','Hari','select',HARI],['shift','Shift','select',SHIFT_D],['jamMulai','Jam Mulai (kosong jika panggilan)','time','opt','10:00'],['jamSelesai','Jam Selesai (kosong jika panggilan)','time','opt','15:00']]},
  absensiDokter:{t:'Absensi Dokter',p:'ABD-',f:[['dokter','Nama Dokter','select',()=>names('dokter')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)},
  perawat:{t:'Perawat',p:'NRS-',f:[['nama','Nama Perawat'],['shift','Shift','select',SHIFT_N],['phone','No. Telepon'],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
  jadwalPerawat:{t:'Jadwal Perawat',p:'JPR-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['shift','Shift','select',SHIFT_N],['info','Info Jadwal','select',INFO],['tukarDengan','Tukar Shift Dengan (jika tukar)','select',()=>['-',...names('perawat')]],['keterangan','Keterangan / Alasan','textarea','opt']]},
- absensiPerawat:{t:'Absensi Perawat',p:'ABP-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)}
+ absensiPerawat:{t:'Absensi Perawat',p:'ABP-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)},
+ reservasi:{t:'Reservasi',p:'RSV-',f:[['tanggal','Tanggal','date',,today],['jam','Jam','time',,'10:00'],['nama','Nama Pasien'],['phone','No. HP / WA'],['dokter','Dokter','select',()=>names('dokter')],['layanan','Layanan','select',()=>names('layanan')],['status','Status','select',['Menunggu','Terkonfirmasi','Selesai','Batal'],'Menunggu'],['catatan','Catatan','textarea','opt']],
+  chk:(o,id,db)=>o.status==='Batal'?'':db.reservasi.some(x=>x.id!==id&&x.status!=='Batal'&&x.tanggal===o.tanggal&&x.jam===o.jam&&x.dokter===o.dokter)?`${o.dokter} sudah punya reservasi pada ${o.tanggal} jam ${o.jam}. Tetap simpan?`:''},
+ pembelianObat:{t:'Pembelian Obat',p:'OBT-',f:[['tanggal','Tanggal Pembelian','date',,today],['obat','Nama Obat / Bahan'],['supplier','Supplier / Apotek'],['jumlah','Jumlah','number'],['satuan','Satuan','select',['Pcs','Box','Tube','Botol','Strip','Pack','Ampul']],['harga','Harga Satuan (Rp)','number'],['catatan','Catatan','textarea','opt']],pre:o=>{o.total=o.jumlah*o.harga}}
 };
 function jamFix(o){['jamMasuk','jamKeluar'].forEach(k=>o[k]=o[k]?o[k]+' WIB':'-')}
 function nid(c){const m=Math.max(0,...getDB()[c].map(x=>parseInt(String(x.id||'').replace(/\D/g,''))||0));return CFG[c].p+String(m+1).padStart(3,'0')}
@@ -290,8 +314,10 @@ function openForm(c,id,pre){const C=CFG[c],r=id?getDB()[c].find(x=>x.id===id):nu
 function saveForm(e,c,id){e.preventDefault();const db=getDB(),C=CFG[c],o={};
  C.f.forEach(f=>{const v=e.target.elements[f[0]].value.trim();o[f[0]]=f[2]==='number'?Number(v):v});
  if(C.pre)C.pre(o,!id);
+ if(C.chk){const w=C.chk(o,id,db);if(w&&!confirm(w))return}
  if(id)Object.assign(db[c].find(x=>x.id===id),o);else{o.id=nid(c);db[c].unshift(o)}
  saveDB(db);closeModal();toast(`${C.t} berhasil ${id?'diperbarui':'ditambahkan'}!`,'success');render()}
+function setRes(id,v){const db=getDB();db.reservasi.find(x=>x.id===id).status=v;saveDB(db);toast('Status reservasi: '+v,'success');render()}
 function addJ(h){openForm('jadwalDokter',null,{hari:h})}
 function del(c,id){if(!confirm('Hapus data ini?'))return;const db=getDB();db[c]=db[c].filter(x=>x.id!==id);saveDB(db);toast('Data dihapus.');render()}
 
@@ -316,12 +342,36 @@ const V={
   <label class="lb">Pilih Pasien<select id="tx_p" class="inp">${db.pasien.map(p=>`<option>${p.nama}</option>`).join('')}</select></label>
   <label class="lb">Dokter Penanggung Jawab<select id="tx_d" class="inp">${db.dokter.map(d=>`<option>${d.nama}</option>`).join('')}</select></label>
   <label class="lb">Layanan Gigi<select id="tx_l" onchange="calcTx(this.value)" class="inp"><option value="">-- Pilih Layanan --</option>${db.layanan.map(l=>`<option value="${l.id}">${l.nama} - ${rp(l.harga)}</option>`).join('')}</select></label>
+  <label class="lb">Tanggal Transaksi<input id="tx_t" type="date" value="${today()}" class="inp"></label>
   <div class="lb">Metode Pembayaran<div class="grid grid-cols-3 gap-2 mt-1">${['Tunai','QRIS','Transfer Bank'].map((m,i)=>`<label class="border p-2 rounded-xl text-center cursor-pointer text-[11px]"><input type="radio" name="tx_m" value="${m}" ${i?'':'checked'}> ${m}</label>`).join('')}</div></div>
   <div class="bg-gold-100 p-3 rounded-2xl flex justify-between font-bold text-xs"><span>Total Tagihan:</span><span id="tx_tot" class="text-base text-brand-600">Rp 0</span></div>
   <button class="btn-p w-full py-3">Selesaikan Transaksi & Bayar</button></form>`)}
   <div class="lg:col-span-2">${card(head('Riwayat Transaksi','Pembayaran terkonfirmasi')+tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${r.pasien}</b>`],['Tindakan',r=>r.layanan],['Total',r=>`<b>${rp(r.total)}</b>`],['Metode',r=>r.metode],['Status',r=>bdg(r.status)],['Nota',r=>`<button onclick="invoice('${r.id}')" class="text-brand-600 font-bold bg-brand-50 px-2.5 py-1 rounded-xl"><i class="fa-solid fa-print"></i></button>`]],F(db.transaksi),false))}</div></div>`,
  rekap_pendapatan:db=>{const t=db.transaksi.reduce((s,i)=>s+i.total,0),b=(l,v)=>`<div class="p-4 rounded-2xl bg-gold-100/60"><span class="text-[10px] font-bold text-slate-400 uppercase">${l}</span><h3 class="text-xl font-extrabold text-brand-600 mt-1">${v}</h3></div>`;
   return card(head('💰 Rekapitulasi Pendapatan','Agregat pemasukan klinik')+`<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${b('Total Omset Lunas',rp(t))}${b('Rata-Rata per Transaksi',rp(Math.round(t/(db.transaksi.length||1))))}${b('Volume Transaksi',db.transaksi.length+' Pembayaran')}</div>`)},
+
+ pendapatan_dokter:db=>{
+  const t=F(db.transaksi).filter(x=>(!rng.a||x.tgl>=rng.a)&&(!rng.b||x.tgl<=rng.b)),
+   ds=[...new Set([...db.dokter.map(d=>d.nama),...t.map(x=>x.dokter)])],sum=a=>a.reduce((s,x)=>s+x.total,0),all=sum(t),
+   per=ds.map(n=>({n,l:t.filter(x=>x.dokter===n)}));
+  return card(head('💼 Pendapatan per Dokter','Pendapatan dari setiap pasien, dikelompokkan berdasarkan dokter yang menangani',`<button onclick="window.print()" class="btn-p"><i class="fa-solid fa-print mr-1"></i> Print</button>`)
+  +`<div class="flex flex-wrap items-end gap-3 mb-4 text-xs"><label class="lb">Dari Tanggal<input type="date" class="inp" value="${rng.a}" onchange="rng.a=this.value;render()"></label><label class="lb">Sampai Tanggal<input type="date" class="inp" value="${rng.b}" onchange="rng.b=this.value;render()"></label><button onclick="rng={a:'',b:''};render()" class="btn-g">Reset</button><div class="ml-auto bg-gold-100 rounded-2xl px-4 py-2 font-bold">Total: <span class="text-brand-600 text-base">${rp(all)}</span></div></div>`
+  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">${per.map(p=>`<div class="p-4 rounded-2xl bg-gold-100/60"><p class="font-bold text-xs">${p.n}</p><h3 class="text-lg font-extrabold text-brand-600">${rp(sum(p.l))}</h3><p class="text-[11px] text-slate-500">${p.l.length} pasien · ${all?Math.round(sum(p.l)/all*100):0}% dari total</p></div>`).join('')}</div>`
+  +(per.filter(p=>p.l.length).map(p=>`<h4 class="font-extrabold text-sm text-brand-700 mt-4 mb-2">${p.n}</h4>`+tbl('transaksi',[['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${r.pasien}</b>`],['Layanan',r=>r.layanan],['Total',r=>`<b>${rp(r.total)}</b>`]],p.l.slice().sort((a,b)=>a.tgl<b.tgl?1:-1),false)+`<p class="text-right text-xs font-bold mt-1">Subtotal: ${rp(sum(p.l))}</p>`).join('')||'<p class="text-center text-slate-400 py-6">Belum ada transaksi pada periode ini</p>'))},
+ reservasi:db=>{const a=F(db.reservasi).slice().sort((x,y)=>(x.tanggal+x.jam)>(y.tanggal+y.jam)?1:-1),td=today(),c=f=>db.reservasi.filter(f).length,
+  box=(l,v)=>`<div class="p-4 rounded-2xl bg-gold-100/60"><span class="text-[10px] font-bold text-slate-400 uppercase">${l}</span><h3 class="text-xl font-extrabold text-brand-600 mt-1">${v}</h3></div>`;
+  return card(head('📅 Reservasi Pasien','Jadwal booking pasien, atur status langsung di tabel',addBtn('reservasi','Tambah Reservasi'))
+  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">${box('Reservasi Hari Ini',c(r=>r.tanggal===td&&r.status!=='Batal'))}${box('Menunggu Konfirmasi',c(r=>r.status==='Menunggu'))}${box('Terkonfirmasi',c(r=>r.status==='Terkonfirmasi'))}</div>`
+  +tbl('reservasi',[['Tanggal',r=>`<b>${r.tanggal}</b>${r.tanggal===td?' '+bdg('Hari ini'):''}`],['Jam',r=>r.jam],['Pasien',r=>`<b>${r.nama}</b><br><span class="text-slate-400">${r.phone}</span>`],['Dokter',r=>r.dokter],['Layanan',r=>r.layanan],['Status',r=>`<select onchange="setRes('${r.id}',this.value)" class="inp" style="padding:.3rem">${['Menunggu','Terkonfirmasi','Selesai','Batal'].map(o=>`<option ${o===r.status?'selected':''}>${o}</option>`).join('')}</select>`],['Catatan',r=>r.catatan||'-']],a))},
+ obat_beli:db=>card(head('💊 Pembelian Obat & Bahan','Catat pembelian obat dan bahan gigi dari supplier',addBtn('pembelianObat','Tambah Pembelian'))+tbl('pembelianObat',[['Tanggal',r=>r.tanggal],['Nama Obat',r=>`<b>${r.obat}</b>`],['Supplier',r=>r.supplier],['Jumlah',r=>r.jumlah+' '+r.satuan],['Harga Satuan',r=>rp(r.harga)],['Total',r=>`<b>${rp(r.total)}</b>`],['Catatan',r=>r.catatan||'-']],F(db.pembelianObat).slice().sort((a,b)=>a.tanggal<b.tanggal?1:-1))),
+ obat_rekap:db=>{const a=F(db.pembelianObat),g={};
+  a.forEach(x=>{const o=g[x.obat+'|'+x.satuan]=g[x.obat+'|'+x.satuan]||{obat:x.obat,satuan:x.satuan,qty:0,total:0,n:0,last:''};o.qty+=x.jumlah;o.total+=x.total;o.n++;if(x.tanggal>o.last)o.last=x.tanggal});
+  const L=Object.values(g).sort((x,y)=>y.total-x.total),bl=grp(a.map(x=>({b:x.tanggal.slice(0,7),t:x.total})),'b',x=>x.t),tot=a.reduce((s,x)=>s+x.total,0),
+  box=(l,v)=>`<div class="p-4 rounded-2xl bg-gold-100/60"><span class="text-[10px] font-bold text-slate-400 uppercase">${l}</span><h3 class="text-lg font-extrabold text-brand-600 mt-1">${v}</h3></div>`;
+  return card(head('🧾 Rekap Obat','Ringkasan pembelian per obat dan per bulan',`<button onclick="window.print()" class="btn-p"><i class="fa-solid fa-print mr-1"></i> Print</button>`)
+  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">${box('Total Pengeluaran Obat',rp(tot))}${box('Jenis Obat',L.length)}${box('Jumlah Pembelian',a.length+'x')}</div>`
+  +`<h4 class="font-extrabold text-sm text-brand-700 mb-2">Rekap per Obat</h4>`+tbl('pembelianObat',[['Nama Obat',r=>`<b>${r.obat}</b>`],['Total Dibeli',r=>r.qty+' '+r.satuan],['Jml Pembelian',r=>r.n+'x'],['Harga Rata-rata',r=>rp(r.qty?r.total/r.qty:0)],['Total Biaya',r=>`<b>${rp(r.total)}</b>`],['Terakhir Beli',r=>r.last]],L,false)
+  +`<h4 class="font-extrabold text-sm text-brand-700 mt-5 mb-2">Rekap per Bulan</h4>`+tbl('pembelianObat',[['Bulan',r=>r.b],['Total Pengeluaran',r=>`<b>${rp(r.t)}</b>`]],Object.keys(bl).sort().reverse().map(k=>({b:k,t:bl[k]})),false))},
  dokter_data:db=>card(head('👨‍⚕️ Data Dokter Gigi','Daftar dokter terdaftar',addBtn('dokter','Tambah Dokter'))+tbl('dokter',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Nama',r=>`<b>${r.nama}</b>`],['SIP',r=>r.sip],['Spesialis',r=>r.spesialis],['Phone',r=>r.phone],['Shift',r=>r.shift||'-'],['Status',r=>bdg(r.status)]],F(db.dokter))),
  dokter_jadwal:db=>{const a=F(db.jadwalDokter);
   return card(head('📅 Jadwal Praktik Mingguan Dokter','Pembagian shift dokter gigi, tersinkron ke Google Sheet',addBtn('jadwalDokter','Tambah Jadwal'))
@@ -335,14 +385,14 @@ const V={
  laporan_absensi_dokter:rep('absensiDokter','Laporan Rekap Absensi Dokter','dokter'),
  laporan_absensi_perawat:rep('absensiPerawat','Laporan Rekap Absensi Perawat','perawat'),
  laporan_ringkasan:db=>{const t=db.transaksi.reduce((s,i)=>s+i.total,0),g=grp(db.transaksi,'layanan'),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-',h=db.absensiDokter.filter(x=>x.status==='Hadir').length;
-  return card(head('📑 Ringkasan Laporan Eksekutif','Dihitung otomatis dari data terbaru')+`<div class="p-4 bg-gold-100/60 rounded-2xl text-xs space-y-2 text-brand-800"><p>• Total Pendapatan Operasional: <b>${rp(t)}</b> (${db.transaksi.length} transaksi)</p><p>• Layanan Terlaris: <b>${top}</b></p><p>• Jumlah Pasien Terdaftar: <b>${db.pasien.length}</b></p><p>• Kehadiran Dokter: <b>${h} dari ${db.absensiDokter.length}</b> catatan absensi</p><p>• Jadwal Perawat Tukar Shift / Tidak Berangkat: <b>${db.jadwalPerawat.filter(x=>x.info!=='Jadwal Normal').length}</b></p></div>`)},
+  return card(head('📑 Ringkasan Laporan Eksekutif','Dihitung otomatis dari data terbaru')+`<div class="p-4 bg-gold-100/60 rounded-2xl text-xs space-y-2 text-brand-800"><p>• Total Pendapatan Operasional: <b>${rp(t)}</b> (${db.transaksi.length} transaksi)</p><p>• Layanan Terlaris: <b>${top}</b></p><p>• Pengeluaran Pembelian Obat: <b>${rp(db.pembelianObat.reduce((s,x)=>s+x.total,0))}</b></p><p>• Jumlah Pasien Terdaftar: <b>${db.pasien.length}</b></p><p>• Kehadiran Dokter: <b>${h} dari ${db.absensiDokter.length}</b> catatan absensi</p><p>• Jadwal Perawat Tukar Shift / Tidak Berangkat: <b>${db.jadwalPerawat.filter(x=>x.info!=='Jadwal Normal').length}</b></p></div>`)},
  statistik:()=>`<div class="bg-white p-5 rounded-3xl card-shadow"><h2 class="text-base font-extrabold">📈 Analisis & Statistik Operasional</h2></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${card('<h3 class="font-bold text-xs mb-3">Pendapatan per Layanan</h3><div class="h-56"><canvas id="c1"></canvas></div>')}${card('<h3 class="font-bold text-xs mb-3">Jumlah Tindakan per Dokter</h3><div class="h-56"><canvas id="c2"></canvas></div>')}</div>`,
- export:()=>`<div class="max-w-xl mx-auto">${card(head('📥 Export Data & Laporan','Unduh data ke format CSV (Excel)')+`<label class="lb">Pilih Data<select id="ex" class="inp">${[['pasien','Data Pasien'],['transaksi','Transaksi & Pendapatan'],['layanan','Layanan Gigi'],['dokter','Data Dokter'],['jadwalDokter','Jadwal Praktik Dokter'],['absensiDokter','Absensi Dokter'],['perawat','Data Perawat'],['jadwalPerawat','Jadwal Perawat'],['absensiPerawat','Absensi Perawat']].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select></label><button onclick="dlCSV()" class="btn-p w-full py-3 mt-4"><i class="fa-solid fa-file-excel mr-1"></i> Unduh File CSV</button>`)}</div>`,
+ export:()=>`<div class="max-w-xl mx-auto">${card(head('📥 Export Data & Laporan','Unduh data ke format CSV (Excel)')+`<label class="lb">Pilih Data<select id="ex" class="inp">${[['pasien','Data Pasien'],['transaksi','Transaksi & Pendapatan'],['layanan','Layanan Gigi'],['dokter','Data Dokter'],['jadwalDokter','Jadwal Praktik Dokter'],['absensiDokter','Absensi Dokter'],['perawat','Data Perawat'],['jadwalPerawat','Jadwal Perawat'],['absensiPerawat','Absensi Perawat'],['pembelianObat','Pembelian Obat'],['reservasi','Reservasi']].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select></label><button onclick="dlCSV()" class="btn-p w-full py-3 mt-4"><i class="fa-solid fa-file-excel mr-1"></i> Unduh File CSV</button>`)}</div>`,
  pengguna:db=>card(head('👤 Pengguna Akses Admin & Staf','')+tbl('pengguna',[['Username',r=>`<b class="text-brand-600">${r.username}</b>`],['Nama',r=>r.nama],['Role',r=>r.role],['Status',r=>bdg(r.status)]],F(db.pengguna),false)),
  notifikasi:db=>card(head('🔔 Pusat Notifikasi Klinik','')+`<div class="space-y-2">${F(db.notifikasi).map(n=>`<div class="p-4 rounded-2xl ${n.unread?'bg-brand-50 border border-brand-100':'bg-slate-50'} flex justify-between"><div><h4 class="font-extrabold text-xs">${n.judul}</h4><p class="text-xs text-slate-600 mt-0.5">${n.pesan}</p><span class="text-[10px] text-slate-400">${n.tgl}</span></div>${n.unread?'<span class="w-2 h-2 rounded-full bg-brand-600"></span>':''}</div>`).join('')||'<p class="text-slate-400 text-xs">Tidak ada notifikasi</p>'}</div>`),
  pengaturan:db=>{const p=db.pengaturan;return `<div class="max-w-xl mx-auto">${card(head('⚙️ Pengaturan Profil Klinik','')+`<form onsubmit="saveSet(event)" class="space-y-3">${[['namaKlinik','Nama Klinik'],['slogan','Slogan / Tagline'],['alamat','Alamat Lengkap'],['telepon','No Telepon / Kontak']].map(f=>`<label class="lb">${f[1]}<input name="${f[0]}" value="${esc(p[f[0]])}" class="inp"></label>`).join('')}<button class="btn-p w-full py-3">Simpan Perubahan</button></form>`)}</div>`}
 };
-const PH={pasien:'pasien',layanan:'layanan',transaksi:'transaksi',dokter_data:'dokter',dokter_jadwal:'jadwal dokter',dokter_absensi:'absensi dokter',perawat_data:'perawat',perawat_jadwal:'jadwal perawat',perawat_absensi:'absensi perawat',laporan_pendapatan:'laporan pendapatan',laporan_absensi_dokter:'absensi dokter',laporan_absensi_perawat:'absensi perawat',pengguna:'pengguna',notifikasi:'notifikasi'};
+const PH={reservasi:'reservasi',pendapatan_dokter:'pendapatan dokter',obat_beli:'pembelian obat',obat_rekap:'obat',pasien:'pasien',layanan:'layanan',transaksi:'transaksi',dokter_data:'dokter',dokter_jadwal:'jadwal dokter',dokter_absensi:'absensi dokter',perawat_data:'perawat',perawat_jadwal:'jadwal perawat',perawat_absensi:'absensi perawat',laporan_pendapatan:'laporan pendapatan',laporan_absensi_dokter:'absensi dokter',laporan_absensi_perawat:'absensi perawat',pengguna:'pengguna',notifikasi:'notifikasi'};
 const mk=(id,c)=>{const e=$(id);if(!e)return;Chart.getChart(e)?.destroy();new Chart(e,c)};
 const INIT={
  dashboard:db=>{const d=[];for(let i=6;i>=0;i--){const x=new Date();x.setDate(x.getDate()-i);d.push(lokal(x))}
@@ -359,13 +409,13 @@ function go(v){cur=v;Q='';$('gs').value='';
  render()}
 function render(){const db=getDB(),g=$('gs');
  g.disabled=!PH[cur];g.placeholder=PH[cur]?'Cari '+PH[cur]+'...':'Pencarian tidak tersedia di halaman ini';
- $('content').innerHTML=V[cur](db);if(INIT[cur])INIT[cur](db)}
+ $('content').innerHTML=V[cur](db);if(INIT[cur])INIT[cur](db);buildRight()}
 
 // ===== KASIR, EXPORT, PENGATURAN =====
 function calcTx(id){const l=getDB().layanan.find(x=>x.id===id);tx=l?l.harga:0;$('tx_tot').textContent=rp(tx)}
 function prosesTx(e){e.preventDefault();if(!tx)return toast('Pilih layanan gigi terlebih dahulu!','warning');
  const db=getDB(),l=db.layanan.find(x=>x.id===$('tx_l').value);
- db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:today(),pasien:$('tx_p').value,dokter:$('tx_d').value,layanan:l.nama,total:tx,metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
+ db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:$('tx_t').value||today(),pasien:$('tx_p').value,dokter:$('tx_d').value,layanan:l.nama,total:tx,metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
  saveDB(db);tx=0;toast('Transaksi sukses!','success');render()}
 function invoice(id){const db=getDB(),t=db.transaksi.find(x=>x.id===id),p=db.pengaturan;if(!t)return;
  const r=(a,b)=>`<div class="flex justify-between"><span class="text-slate-500">${a}</span><b>${b}</b></div>`;
