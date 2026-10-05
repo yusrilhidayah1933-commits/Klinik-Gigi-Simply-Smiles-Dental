@@ -95,14 +95,17 @@ document.querySelectorAll('.logo').forEach(i=>i.src=LOGO);
 {const l=document.createElement('link');l.rel='icon';l.href=LOGO;document.head.appendChild(l)}
 
 const HARI=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
-const SHIFT_D=['Pagi (08:00 - 15:00)','Siang (13:00 - 20:00)','Full Day (08:00 - 20:00)'];
-const SHIFT_N=['Pagi (08:00 - 16:00)','Siang (13:00 - 21:00)'];
+const SHIFT_D=['Shift 1 (10:00 - 15:00)','Shift 2 (15:00 - 20:00)','Panggilan'];
+const SHIFT_N=SHIFT_D;
+const JAM={'Shift 1':['10:00','15:00'],'Shift 2':['15:00','20:00'],'Panggilan':['','']};
+function shiftFill(el){const f=el.form;if(!f||!f.elements.jamMulai)return;const m=JAM[el.value.split(' (')[0]]||['',''];f.elements.jamMulai.value=m[0];f.elements.jamSelesai.value=m[1]}
+const pgl=x=>String(x.shift||'').startsWith('Panggilan');
 const INFO=['Jadwal Normal','Tukar Shift','Tidak Berangkat'];
 const COL=['#6d0f26','#d9b98a','#9b1c3a','#c9a56c','#8a5a44','#e6cfa6'];
 
 // ===== DATA AWAL =====
 const A='Drg. Alisha Nicholls, Sp.KG',R='Drg. Ahmad Rizky, Sp.Ort',M='Drg. Maria Elena, Sp.BM';
-let jn=0;const J=(h,d,a,b)=>({id:'JDW-'+String(++jn).padStart(3,'0'),dokter:d,hari:h,jamMulai:a,jamSelesai:b});
+let jn=0;const J=(h,d,a,b)=>({id:'JDW-'+String(++jn).padStart(3,'0'),dokter:d,hari:h,shift:a==='10:00'?SHIFT_D[0]:SHIFT_D[1],jamMulai:a,jamSelesai:b});
 const initialData={
  pasien:[
   {id:"PSG-001",nama:"Budi Santoso",umur:32,gender:"Laki-laki",phone:"081234567890",riwayat:"Scalling & Tambal Gigi Molar",tglKunjungan:"2026-10-01"},
@@ -121,8 +124,8 @@ const initialData={
   {id:"DR-01",nama:A,sip:"SIP/2022/8821",spesialis:"Konservasi Gigi",phone:"0811122233",shift:SHIFT_D[0],status:"Aktif"},
   {id:"DR-02",nama:R,sip:"SIP/2021/7732",spesialis:"Ortodonti (Behel)",phone:"0811133344",shift:SHIFT_D[1],status:"Aktif"},
   {id:"DR-03",nama:M,sip:"SIP/2023/1129",spesialis:"Bedah Mulut",phone:"0811144455",shift:SHIFT_D[0],status:"Aktif"}],
- jadwalDokter:['Senin','Selasa','Rabu'].flatMap(h=>[J(h,A,'08:00','15:00'),J(h,R,'13:00','20:00')])
-  .concat(['Kamis','Jumat'].flatMap(h=>[J(h,M,'09:00','16:00'),J(h,A,'13:00','20:00')]),[J('Sabtu',R,'08:00','16:00')]),
+ jadwalDokter:['Senin','Selasa','Rabu'].flatMap(h=>[J(h,A,'10:00','15:00'),J(h,R,'15:00','20:00')])
+  .concat(['Kamis','Jumat'].flatMap(h=>[J(h,M,'10:00','15:00'),J(h,A,'15:00','20:00')]),[J('Sabtu',R,'10:00','15:00'),J('Sabtu',A,'15:00','20:00')]),
  perawat:[
   {id:"NRS-01",nama:"Ns. Siska Putri, S.Kep",shift:SHIFT_N[0],phone:"085211002299",status:"Aktif"},
   {id:"NRS-02",nama:"Ns. Diana Kartika, Amd.Kep",shift:SHIFT_N[1],phone:"085233445566",status:"Aktif"}],
@@ -155,6 +158,8 @@ const NEWK=['jadwalDokter','jadwalPerawat'];
 function mig(db){let ch=false;
  for(const k in initialData)if(db[k]===undefined){db[k]=JSON.parse(JSON.stringify(initialData[k]));ch=true}
  [['absensiDokter','ABD-'],['absensiPerawat','ABP-']].forEach(([k,p])=>db[k].forEach((r,i)=>{if(!r.id){r.id=p+String(i+1).padStart(3,'0');ch=true}}));
+ const old={'Pagi':SHIFT_D[0],'Siang':SHIFT_D[1],'Full':SHIFT_D[0]};
+ [['dokter'],['perawat'],['jadwalPerawat']].forEach(([k])=>db[k].forEach(r=>{const w=String(r.shift||'').split(' ')[0];if(old[w]&&!/^(Shift|Panggilan)/.test(r.shift)){r.shift=old[w];ch=true}}));
  if(/MedCare/i.test(db.pengaturan.namaKlinik||'')){db.pengaturan.namaKlinik=initialData.pengaturan.namaKlinik;ch=true}
  return ch}
 function getDB(){
@@ -261,7 +266,7 @@ const CFG={
   pre:(o,n)=>{if(n)o.tglKunjungan=today();o.riwayat=o.riwayat||'Pemeriksaan Rutin'}},
  layanan:{t:'Layanan',p:'LYN-',f:[['nama','Nama Layanan'],['kategori','Kategori','select',['Perawatan Rutin','Restorasi','Ortodontik','Estetika','Endodontik','Bedah Mulut']],['durasi','Durasi (Menit)','number'],['harga','Harga (Rp)','number']],pre:(o,n)=>{if(n)o.status='Aktif'}},
  dokter:{t:'Dokter',p:'DR-',f:[['nama','Nama Dokter'],['sip','No. SIP'],['spesialis','Spesialis'],['phone','No. Telepon'],['shift','Shift','select',SHIFT_D],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
- jadwalDokter:{t:'Jadwal Praktik Dokter',p:'JDW-',f:[['dokter','Dokter','select',()=>names('dokter')],['hari','Hari','select',HARI],['jamMulai','Jam Mulai','time',,'08:00'],['jamSelesai','Jam Selesai','time',,'15:00']]},
+ jadwalDokter:{t:'Jadwal Praktik Dokter',p:'JDW-',f:[['dokter','Dokter','select',()=>names('dokter')],['hari','Hari','select',HARI],['shift','Shift','select',SHIFT_D],['jamMulai','Jam Mulai (kosong jika panggilan)','time','opt','10:00'],['jamSelesai','Jam Selesai (kosong jika panggilan)','time','opt','15:00']]},
  absensiDokter:{t:'Absensi Dokter',p:'ABD-',f:[['dokter','Nama Dokter','select',()=>names('dokter')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)},
  perawat:{t:'Perawat',p:'NRS-',f:[['nama','Nama Perawat'],['shift','Shift','select',SHIFT_N],['phone','No. Telepon'],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
  jadwalPerawat:{t:'Jadwal Perawat',p:'JPR-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['shift','Shift','select',SHIFT_N],['info','Info Jadwal','select',INFO],['tukarDengan','Tukar Shift Dengan (jika tukar)','select',()=>['-',...names('perawat')]],['keterangan','Keterangan / Alasan','textarea','opt']]},
@@ -272,7 +277,7 @@ function nid(c){const m=Math.max(0,...getDB()[c].map(x=>parseInt(String(x.id||''
 function fld([k,l,t='text',o,d],v){
  if(v===undefined)v=typeof d==='function'?d():(d??'');
  if(t==='time')v=v==='-'?'':String(v).replace(' WIB','');
- const a=`name="${k}" class="inp"`;
+ const a=`name="${k}" class="inp"${k==='shift'?' onchange="shiftFill(this)"':''}`;
  if(t==='select'){const L=typeof o==='function'?o():o;return `<label class="lb">${l}<select ${a}>${L.map(x=>`<option ${x==v?'selected':''}>${x}</option>`).join('')}</select></label>`}
  if(t==='textarea')return `<label class="lb col-span-2">${l}<textarea ${a} rows="2">${v}</textarea></label>`;
  return `<label class="lb">${l}<input type="${t}" ${a} value="${esc(v)}" ${o==='opt'?'':'required'} ${t==='number'?'min="0"':''}></label>`}
@@ -320,8 +325,8 @@ const V={
  dokter_data:db=>card(head('👨‍⚕️ Data Dokter Gigi','Daftar dokter terdaftar',addBtn('dokter','Tambah Dokter'))+tbl('dokter',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Nama',r=>`<b>${r.nama}</b>`],['SIP',r=>r.sip],['Spesialis',r=>r.spesialis],['Phone',r=>r.phone],['Shift',r=>r.shift||'-'],['Status',r=>bdg(r.status)]],F(db.dokter))),
  dokter_jadwal:db=>{const a=F(db.jadwalDokter);
   return card(head('📅 Jadwal Praktik Mingguan Dokter','Pembagian shift dokter gigi, tersinkron ke Google Sheet',addBtn('jadwalDokter','Tambah Jadwal'))
-  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">${HARI.map(h=>{const l=a.filter(x=>x.hari===h).sort((x,y)=>x.jamMulai>y.jamMulai?1:-1);
-   return `<div class="p-4 rounded-2xl bg-gold-100/50 border border-gold-300/50"><div class="font-extrabold text-brand-600 mb-2 border-b border-gold-300 pb-1 flex justify-between items-center">${h}<button onclick="addJ('${h}')" class="text-[11px] bg-brand-600 text-white px-2 py-0.5 rounded-lg" title="Tambah jadwal ${h}"><i class="fa-solid fa-plus"></i> Tambah</button></div>${l.map(x=>`<div class="mb-2 flex justify-between gap-2"><div><p class="font-bold">${x.dokter}</p><p class="text-slate-500">${x.jamMulai} - ${x.jamSelesai} WIB</p></div><div class="whitespace-nowrap"><button onclick="openForm('jadwalDokter','${x.id}')" class="text-brand-600 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="del('jadwalDokter','${x.id}')" class="text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('')||'<p class="text-slate-400">Tidak ada jadwal</p>'}</div>`}).join('')}</div>`)},
+  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">${HARI.map(h=>{const l=a.filter(x=>x.hari===h).sort((x,y)=>(pgl(x)?'99':x.jamMulai)>(pgl(y)?'99':y.jamMulai)?1:-1);
+   return `<div class="p-4 rounded-2xl bg-gold-100/50 border border-gold-300/50"><div class="font-extrabold text-brand-600 mb-2 border-b border-gold-300 pb-1 flex justify-between items-center">${h}<button onclick="addJ('${h}')" class="text-[11px] bg-brand-600 text-white px-2 py-0.5 rounded-lg" title="Tambah jadwal ${h}"><i class="fa-solid fa-plus"></i> Tambah</button></div>${l.map(x=>`<div class="mb-2 flex justify-between gap-2"><div><p class="font-bold">${x.dokter}</p><p class="text-slate-500">${pgl(x)?'Panggilan (siaga)':(x.shift?x.shift.split(' (')[0]+' · ':'')+x.jamMulai+' - '+x.jamSelesai+' WIB'}</p></div><div class="whitespace-nowrap"><button onclick="openForm('jadwalDokter','${x.id}')" class="text-brand-600 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="del('jadwalDokter','${x.id}')" class="text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('')||'<p class="text-slate-400">Tidak ada jadwal</p>'}</div>`}).join('')}</div>`)},
  dokter_absensi:db=>card(head('📋 Absensi Kehadiran Dokter','Pencatatan jam masuk dan keluar',addBtn('absensiDokter','Catat Kehadiran'))+tbl('absensiDokter',absCols('dokter'),F(db.absensiDokter))),
  perawat_data:db=>card(head('👩‍⚕️ Data Perawat Klinik','Daftar perawat asisten klinik gigi',addBtn('perawat','Tambah Perawat'))+tbl('perawat',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Nama',r=>`<b>${r.nama}</b>`],['Shift',r=>r.shift],['Phone',r=>r.phone],['Status',r=>bdg(r.status)]],F(db.perawat))),
  perawat_jadwal:db=>card(head('🗓️ Jadwal Perawat','Jadwal shift, tukar shift, dan perawat yang tidak berangkat',addBtn('jadwalPerawat','Tambah Jadwal Perawat'))+tbl('jadwalPerawat',[['Perawat',r=>`<b>${r.perawat}</b>`],['Tanggal',r=>r.tanggal],['Shift',r=>r.shift],['Info',r=>bdg(r.info)],['Tukar Dengan',r=>r.tukarDengan||'-'],['Keterangan',r=>r.keterangan||'-']],F(db.jadwalPerawat).sort((a,b)=>a.tanggal<b.tanggal?1:-1))),
