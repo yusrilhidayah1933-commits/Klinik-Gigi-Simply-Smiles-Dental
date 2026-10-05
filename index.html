@@ -96,16 +96,22 @@ document.querySelectorAll('.logo').forEach(i=>i.src=LOGO);
 
 const HARI=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
 const SHIFT_D=['Shift 1 (10:00 - 15:00)','Shift 2 (15:00 - 20:00)','Panggilan'];
-const SHIFT_N=SHIFT_D;
-const JAM={'Shift 1':['10:00','15:00'],'Shift 2':['15:00','20:00'],'Panggilan':['','']};
+const SHIFT_B=[...SHIFT_D.slice(0,2),'Shift 1 & 2 (Bergilir)','Panggilan'];
+const SHIFT_N=SHIFT_B;
+const JAM={'Shift 1':['10:00','15:00'],'Shift 2':['15:00','20:00'],'Shift 1 & 2':['10:00','20:00'],'Panggilan':['','']};
 function shiftFill(el){const f=el.form;if(!f||!f.elements.jamMulai)return;const m=JAM[el.value.split(' (')[0]]||['',''];f.elements.jamMulai.value=m[0];f.elements.jamSelesai.value=m[1]}
 const pgl=x=>String(x.shift||'').startsWith('Panggilan');
 const INFO=['Jadwal Normal','Tukar Shift','Tidak Berangkat'];
 const COL=['#6d0f26','#d9b98a','#9b1c3a','#c9a56c','#8a5a44','#e6cfa6'];
 
 // ===== DATA AWAL =====
-const A='Drg. Alisha Nicholls, Sp.KG',R='Drg. Ahmad Rizky, Sp.Ort',M='Drg. Maria Elena, Sp.BM';
-let jn=0;const J=(h,d,a,b)=>({id:'JDW-'+String(++jn).padStart(3,'0'),dokter:d,hari:h,shift:a==='10:00'?SHIFT_D[0]:SHIFT_D[1],jamMulai:a,jamSelesai:b});
+const A='Drg. Icha',R='Drg. Anin',M='Drg. Enrico';
+let jn=0;const J=(h,d,i,tp)=>({id:'JDW-'+String(++jn).padStart(3,'0'),dokter:d,hari:h,shift:SHIFT_D[i],tipe:tp,jamMulai:JAM['Shift '+(i+1)][0],jamSelesai:JAM['Shift '+(i+1)][1]});
+// Jadwal dokter asli: s = Standby, b = By Appointment (urut Shift 1, Shift 2)
+const DS={Senin:{s:['Icha','Icha'],b:['Anin','Anin']},Selasa:{s:['Icha','Enrico'],b:['Anin','Anin']},Rabu:{s:['Hanif','Icha'],b:['Hafiz','Hafiz']},Kamis:{s:['Irfan','Irfan'],b:['Ninda','Ninda']},Jumat:{s:['Enrico','Icha'],b:['Anin','Anin']},Sabtu:{s:['Icha','Irfan'],b:['Hanif','Hanif']},Minggu:{s:['Ninda'],b:[]}};
+// Jadwal perawat Oktober 2026: tanggal -> [Shift 1, Shift 2] = 'PG1 Admin/PG2 Asisten'
+const PN={"2026-10-01":["Aji/Nada","Aji/Nada"],"2026-10-02":["Nada/Mutia","Nada/Mutia"],"2026-10-03":["Mutia/Nada","Mutia/Nada"],"2026-10-04":["Mutia/Mutia",""],"2026-10-05":["Aji/Mutia","Aji/Mutia"],"2026-10-06":["Nada/Mutia","Nada/Mutia"],"2026-10-07":["Aji/Mutia","Aji/Nada"],"2026-10-08":["Nada/Mutia","Nada/Mutia"],"2026-10-09":["Aji/Nada","Aji/Nada"],"2026-10-10":["Aji/Nada","Aji/Nada"],"2026-10-11":["Aji/Aji",""],"2026-10-12":["Aji/Nada","Aji/Nada"],"2026-10-13":["Nada/Mutia","Nada/Mutia"],"2026-10-14":["Aji/Nada","Aji/Mutia"],"2026-10-15":["Mutia/Nada","Mutia/Nada"],"2026-10-16":["Aji/Mutia","Aji/Mutia"],"2026-10-17":["Aji/Mutia","Aji/Mutia"],"2026-10-18":["Aji/Aji",""],"2026-10-19":["Aji/Nada","Aji/Nada"],"2026-10-20":["Nada/Mutia","Nada/Mutia"],"2026-10-21":["Aji/Mutia","Aji/Mutia"],"2026-10-22":["Mutia/Nada","Mutia/Nada"],"2026-10-23":["Aji/Mutia","Aji/Mutia"],"2026-10-24":["Aji/Nada","Aji/Nada"],"2026-10-25":["Nada/Nada",""],"2026-10-26":["Mutia/Nada","Mutia/Nada"],"2026-10-27":["Aji/Mutia","Aji/Mutia"],"2026-10-28":["Nada/Mutia","Nada/Mutia"],"2026-10-29":["Aji/Nada","Aji/Nada"],"2026-10-30":["Aji/Mutia","Aji/Mutia"],"2026-10-31":["Aji/Mutia","Aji/Nada"]};
+const genJP=()=>{const o=[];let n=0;Object.entries(PN).forEach(([d,sh])=>sh.forEach((v,i)=>{if(!v)return;const [a,b]=v.split('/');[[a,'PG 1 (Admin)'],[b,'PG 2 (Asisten)']].forEach(([x,p])=>{if(x)o.push({id:'JPR-'+String(++n).padStart(3,'0'),perawat:x,tanggal:d,shift:SHIFT_D[i],peran:p,info:'Jadwal Normal',tukarDengan:'-',keterangan:''})})}));return o};
 const initialData={
  pasien:[
   {id:"PSG-001",nama:"Budi Santoso",umur:32,gender:"Laki-laki",phone:"081234567890",riwayat:"Scalling & Tambal Gigi Molar",tglKunjungan:"2026-10-01"},
@@ -121,17 +127,19 @@ const initialData={
   {id:"LYN-05",nama:"Perawatan Saluran Akar (PSA)",kategori:"Endodontik",durasi:60,harga:750000,status:"Aktif"},
   {id:"LYN-06",nama:"Cabut Gigi Bungsu (Odontektomi)",kategori:"Bedah Mulut",durasi:60,harga:1500000,status:"Aktif"}],
  dokter:[
-  {id:"DR-01",nama:A,sip:"SIP/2022/8821",spesialis:"Konservasi Gigi",phone:"0811122233",shift:SHIFT_D[0],status:"Aktif"},
-  {id:"DR-02",nama:R,sip:"SIP/2021/7732",spesialis:"Ortodonti (Behel)",phone:"0811133344",shift:SHIFT_D[1],status:"Aktif"},
-  {id:"DR-03",nama:M,sip:"SIP/2023/1129",spesialis:"Bedah Mulut",phone:"0811144455",shift:SHIFT_D[0],status:"Aktif"}],
- jadwalDokter:['Senin','Selasa','Rabu'].flatMap(h=>[J(h,A,'10:00','15:00'),J(h,R,'15:00','20:00')])
-  .concat(['Kamis','Jumat'].flatMap(h=>[J(h,M,'10:00','15:00'),J(h,A,'15:00','20:00')]),[J('Sabtu',R,'10:00','15:00'),J('Sabtu',A,'15:00','20:00')]),
+  {id:"DR-01",nama:"Drg. Icha",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Shift 1 & 2 (Bergilir)",status:"Aktif"},
+  {id:"DR-02",nama:"Drg. Anin",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Panggilan",status:"Aktif"},
+  {id:"DR-03",nama:"Drg. Enrico",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Shift 1 & 2 (Bergilir)",status:"Aktif"},
+  {id:"DR-04",nama:"Drg. Hanif",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Shift 1 & 2 (Bergilir)",status:"Aktif"},
+  {id:"DR-05",nama:"Drg. Hafiz",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Panggilan",status:"Aktif"},
+  {id:"DR-06",nama:"Drg. Irfan",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Shift 1 & 2 (Bergilir)",status:"Aktif"},
+  {id:"DR-07",nama:"Drg. Ninda",sip:"-",spesialis:"Dokter Gigi",phone:"-",shift:"Shift 1 & 2 (Bergilir)",status:"Aktif"}],
+ jadwalDokter:Object.entries(DS).flatMap(([h,v])=>[['s','Standby'],['b','By Appointment']].flatMap(([k,tp])=>v[k].map((n,x)=>J(h,'Drg. '+n,x,tp)))),
  perawat:[
-  {id:"NRS-01",nama:"Ns. Siska Putri, S.Kep",shift:SHIFT_N[0],phone:"085211002299",status:"Aktif"},
-  {id:"NRS-02",nama:"Ns. Diana Kartika, Amd.Kep",shift:SHIFT_N[1],phone:"085233445566",status:"Aktif"}],
- jadwalPerawat:[
-  {id:"JPR-001",perawat:"Ns. Siska Putri, S.Kep",tanggal:"2026-10-05",shift:SHIFT_N[0],info:"Jadwal Normal",tukarDengan:"-",keterangan:""},
-  {id:"JPR-002",perawat:"Ns. Diana Kartika, Amd.Kep",tanggal:"2026-10-06",shift:SHIFT_N[1],info:"Tukar Shift",tukarDengan:"Ns. Siska Putri, S.Kep",keterangan:"Tukar shift, ada keperluan keluarga"}],
+  {id:"NRS-01",nama:"Aji",shift:"Shift 1 & 2 (Bergilir)",phone:"-",status:"Aktif"},
+  {id:"NRS-02",nama:"Nada",shift:"Shift 1 & 2 (Bergilir)",phone:"-",status:"Aktif"},
+  {id:"NRS-03",nama:"Mutia",shift:"Shift 1 & 2 (Bergilir)",phone:"-",status:"Aktif"}],
+ jadwalPerawat:genJP(),
  reservasi:[
   {id:"RSV-001",tanggal:"2026-10-06",jam:"10:00",nama:"Rina Marlina",phone:"081377788899",dokter:A,layanan:"Scalling / Pembersihan Karang",status:"Terkonfirmasi",catatan:""},
   {id:"RSV-002",tanggal:"2026-10-06",jam:"15:30",nama:"Joko Prasetyo",phone:"082155566677",dokter:R,layanan:"Pemasangan Behel Gigi",status:"Menunggu",catatan:"Konsultasi awal"}],
@@ -148,8 +156,8 @@ const initialData={
   {id:"ABD-002",dokter:R,tanggal:"2026-10-03",status:"Hadir",jamMasuk:"08:10 WIB",jamKeluar:"-"},
   {id:"ABD-003",dokter:M,tanggal:"2026-10-03",status:"Izin",jamMasuk:"-",jamKeluar:"-"}],
  absensiPerawat:[
-  {id:"ABP-001",perawat:"Ns. Siska Putri, S.Kep",tanggal:"2026-10-03",status:"Hadir",jamMasuk:"07:45 WIB",jamKeluar:"16:00 WIB"},
-  {id:"ABP-002",perawat:"Ns. Diana Kartika, Amd.Kep",tanggal:"2026-10-03",status:"Hadir",jamMasuk:"12:50 WIB",jamKeluar:"-"}],
+  {id:"ABP-001",perawat:"Aji",tanggal:"2026-10-03",status:"Hadir",jamMasuk:"07:45 WIB",jamKeluar:"16:00 WIB"},
+  {id:"ABP-002",perawat:"Nada",tanggal:"2026-10-03",status:"Hadir",jamMasuk:"12:50 WIB",jamKeluar:"-"}],
  pengguna:[
   {username:"admin_alisha",nama:"Dr. Alisha Nicholls",role:"Super Admin",status:"Aktif"},
   {username:"kasir_klinik",nama:"Bambang Tri",role:"Kasir & Staf Frontdesk",status:"Aktif"},
@@ -240,6 +248,8 @@ function buildNav(){$('nav').innerHTML=NAV.map(n=>Array.isArray(n[2])?
  <div class="sub hidden pl-8 space-y-1 mt-1">${n[2].map(s=>`<a href="#" id="nav-${s[0]}" onclick="go('${s[0]}')" class="block py-2 px-3 rounded-xl text-xs text-gold-300 hover:text-white">${s[1]}</a>`).join('')}</div></div>`
  :`<a href="#" id="nav-${n[0]}" onclick="go('${n[0]}')" class="nv"><i class="fa-solid ${n[1]} w-5 text-center"></i><span class="hidden md:inline">${n[2]}</span></a>`).join('')}
 let calM=new Date(),calSel=today(),rng={a:'',b:''};calM.setDate(1);
+let pm=new Date(),pmode='kalender';pm.setDate(1);
+function pmNav(n){pm=new Date(pm.getFullYear(),pm.getMonth()+n,1);render()}
 function calNav(n){calM=new Date(calM.getFullYear(),calM.getMonth()+n,1);buildRight()}
 function calPick(d){calSel=d;buildRight()}
 function buildRight(){const db=getDB(),y=calM.getFullYear(),m=calM.getMonth(),f=new Date(y,m,1).getDay(),n=new Date(y,m+1,0).getDate(),td=today(),
@@ -286,11 +296,11 @@ const CFG={
  pasien:{t:'Pasien',p:'PSG-',f:[['nama','Nama Pasien'],['umur','Umur (Tahun)','number'],['gender','Jenis Kelamin','select',['Laki-laki','Perempuan']],['phone','No. HP / WA'],['tglKunjungan','Tanggal Kunjungan','date',,today],['riwayat','Catatan / Riwayat Gigi','textarea']],
   pre:(o,n)=>{o.riwayat=o.riwayat||'Pemeriksaan Rutin'}},
  layanan:{t:'Layanan',p:'LYN-',f:[['nama','Nama Layanan'],['kategori','Kategori','select',['Perawatan Rutin','Restorasi','Ortodontik','Estetika','Endodontik','Bedah Mulut']],['durasi','Durasi (Menit)','number'],['harga','Harga (Rp)','number']],pre:(o,n)=>{if(n)o.status='Aktif'}},
- dokter:{t:'Dokter',p:'DR-',f:[['nama','Nama Dokter'],['sip','No. SIP'],['spesialis','Spesialis'],['phone','No. Telepon'],['shift','Shift','select',SHIFT_D],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
- jadwalDokter:{t:'Jadwal Praktik Dokter',p:'JDW-',f:[['dokter','Dokter','select',()=>names('dokter')],['hari','Hari','select',HARI],['shift','Shift','select',SHIFT_D],['jamMulai','Jam Mulai (kosong jika panggilan)','time','opt','10:00'],['jamSelesai','Jam Selesai (kosong jika panggilan)','time','opt','15:00']]},
+ dokter:{t:'Dokter',p:'DR-',f:[['nama','Nama Dokter'],['sip','No. SIP'],['spesialis','Spesialis'],['phone','No. Telepon'],['shift','Shift','select',SHIFT_B],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
+ jadwalDokter:{t:'Jadwal Praktik Dokter',p:'JDW-',f:[['dokter','Dokter','select',()=>names('dokter')],['hari','Hari','select',HARI],['shift','Shift','select',SHIFT_D],['tipe','Tipe','select',['Standby','By Appointment']],['jamMulai','Jam Mulai (kosong jika panggilan)','time','opt','10:00'],['jamSelesai','Jam Selesai (kosong jika panggilan)','time','opt','15:00']]},
  absensiDokter:{t:'Absensi Dokter',p:'ABD-',f:[['dokter','Nama Dokter','select',()=>names('dokter')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)},
- perawat:{t:'Perawat',p:'NRS-',f:[['nama','Nama Perawat'],['shift','Shift','select',SHIFT_N],['phone','No. Telepon'],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
- jadwalPerawat:{t:'Jadwal Perawat',p:'JPR-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['shift','Shift','select',SHIFT_N],['info','Info Jadwal','select',INFO],['tukarDengan','Tukar Shift Dengan (jika tukar)','select',()=>['-',...names('perawat')]],['keterangan','Keterangan / Alasan','textarea','opt']]},
+ perawat:{t:'Perawat',p:'NRS-',f:[['nama','Nama Perawat'],['shift','Shift','select',SHIFT_B],['phone','No. Telepon'],['status','Status','select',['Aktif','Cuti','Nonaktif']]]},
+ jadwalPerawat:{t:'Jadwal Perawat',p:'JPR-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['shift','Shift','select',SHIFT_D.slice(0,2)],['peran','Peran','select',['PG 1 (Admin)','PG 2 (Asisten)']],['info','Info Jadwal','select',INFO],['tukarDengan','Tukar Shift Dengan (jika tukar)','select',()=>['-',...names('perawat')]],['keterangan','Keterangan / Alasan','textarea','opt']]},
  absensiPerawat:{t:'Absensi Perawat',p:'ABP-',f:[['perawat','Nama Perawat','select',()=>names('perawat')],['tanggal','Tanggal','date',,today],['status','Status Kehadiran','select',['Hadir','Izin','Sakit']],['jamMasuk','Jam Masuk','time','opt',hhmm],['jamKeluar','Jam Keluar','time','opt']],pre:o=>jamFix(o)},
  reservasi:{t:'Reservasi',p:'RSV-',f:[['tanggal','Tanggal','date',,today],['jam','Jam','time',,'10:00'],['nama','Nama Pasien'],['phone','No. HP / WA'],['dokter','Dokter','select',()=>names('dokter')],['layanan','Layanan','select',()=>names('layanan')],['status','Status','select',['Menunggu','Terkonfirmasi','Selesai','Batal'],'Menunggu'],['catatan','Catatan','textarea','opt']],
   chk:(o,id,db)=>o.status==='Batal'?'':db.reservasi.some(x=>x.id!==id&&x.status!=='Batal'&&x.tanggal===o.tanggal&&x.jam===o.jam&&x.dokter===o.dokter)?`${o.dokter} sudah punya reservasi pada ${o.tanggal} jam ${o.jam}. Tetap simpan?`:''},
@@ -318,7 +328,10 @@ function saveForm(e,c,id){e.preventDefault();const db=getDB(),C=CFG[c],o={};
  if(id)Object.assign(db[c].find(x=>x.id===id),o);else{o.id=nid(c);db[c].unshift(o)}
  saveDB(db);closeModal();toast(`${C.t} berhasil ${id?'diperbarui':'ditambahkan'}!`,'success');render()}
 function setRes(id,v){const db=getDB();db.reservasi.find(x=>x.id===id).status=v;saveDB(db);toast('Status reservasi: '+v,'success');render()}
-function addJ(h){openForm('jadwalDokter',null,{hari:h})}
+function addJ(h,sh,tp){const o=SHIFT_D.find(x=>x.startsWith(sh))||SHIFT_D[0],j=JAM[o.split(' (')[0]]||['',''];openForm('jadwalDokter',null,{hari:h,shift:o,tipe:tp||'Standby',jamMulai:j[0],jamSelesai:j[1]})}
+function importJadwal(){if(!confirm('Ganti seluruh jadwal dokter & perawat dengan jadwal asli (Oktober 2026)? Dokter/perawat yang belum ada akan ditambahkan.'))return;
+ const db=getDB();['dokter','perawat'].forEach(k=>initialData[k].forEach(x=>{if(db[k].some(y=>y.nama===x.nama))return;const c=JSON.parse(JSON.stringify(x));c.id=CFG[k].p+String(Math.max(0,...db[k].map(y=>parseInt(String(y.id).replace(/\D/g,''))||0))+1).padStart(3,'0');db[k].push(c)}));
+ db.jadwalDokter=JSON.parse(JSON.stringify(initialData.jadwalDokter));db.jadwalPerawat=JSON.parse(JSON.stringify(initialData.jadwalPerawat));saveDB(db);toast('Jadwal asli dimuat!','success');render()}
 function del(c,id){if(!confirm('Hapus data ini?'))return;const db=getDB();db[c]=db[c].filter(x=>x.id!==id);saveDB(db);toast('Data dihapus.');render()}
 
 // ===== VIEW =====
@@ -373,13 +386,27 @@ const V={
   +`<h4 class="font-extrabold text-sm text-brand-700 mb-2">Rekap per Obat</h4>`+tbl('pembelianObat',[['Nama Obat',r=>`<b>${r.obat}</b>`],['Total Dibeli',r=>r.qty+' '+r.satuan],['Jml Pembelian',r=>r.n+'x'],['Harga Rata-rata',r=>rp(r.qty?r.total/r.qty:0)],['Total Biaya',r=>`<b>${rp(r.total)}</b>`],['Terakhir Beli',r=>r.last]],L,false)
   +`<h4 class="font-extrabold text-sm text-brand-700 mt-5 mb-2">Rekap per Bulan</h4>`+tbl('pembelianObat',[['Bulan',r=>r.b],['Total Pengeluaran',r=>`<b>${rp(r.t)}</b>`]],Object.keys(bl).sort().reverse().map(k=>({b:k,t:bl[k]})),false))},
  dokter_data:db=>card(head('👨‍⚕️ Data Dokter Gigi','Daftar dokter terdaftar',addBtn('dokter','Tambah Dokter'))+tbl('dokter',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Nama',r=>`<b>${r.nama}</b>`],['SIP',r=>r.sip],['Spesialis',r=>r.spesialis],['Phone',r=>r.phone],['Shift',r=>r.shift||'-'],['Status',r=>bdg(r.status)]],F(db.dokter))),
- dokter_jadwal:db=>{const a=F(db.jadwalDokter);
-  return card(head('📅 Jadwal Praktik Mingguan Dokter','Pembagian shift dokter gigi, tersinkron ke Google Sheet',addBtn('jadwalDokter','Tambah Jadwal'))
-  +`<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">${HARI.map(h=>{const l=a.filter(x=>x.hari===h).sort((x,y)=>(pgl(x)?'99':x.jamMulai)>(pgl(y)?'99':y.jamMulai)?1:-1);
-   return `<div class="p-4 rounded-2xl bg-gold-100/50 border border-gold-300/50"><div class="font-extrabold text-brand-600 mb-2 border-b border-gold-300 pb-1 flex justify-between items-center">${h}<button onclick="addJ('${h}')" class="text-[11px] bg-brand-600 text-white px-2 py-0.5 rounded-lg" title="Tambah jadwal ${h}"><i class="fa-solid fa-plus"></i> Tambah</button></div>${l.map(x=>`<div class="mb-2 flex justify-between gap-2"><div><p class="font-bold">${x.dokter}</p><p class="text-slate-500">${pgl(x)?'Panggilan (siaga)':(x.shift?x.shift.split(' (')[0]+' · ':'')+x.jamMulai+' - '+x.jamSelesai+' WIB'}</p></div><div class="whitespace-nowrap"><button onclick="openForm('jadwalDokter','${x.id}')" class="text-brand-600 p-1"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="del('jadwalDokter','${x.id}')" class="text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button></div></div>`).join('')||'<p class="text-slate-400">Tidak ada jadwal</p>'}</div>`}).join('')}</div>`)},
+ dokter_jadwal:db=>{const a=F(db.jadwalDokter),DC=['#fdecc8','#f2b8ab','#c8dcf8','#d9d2ea','#d4e8d0','#ffe3cf','#e5e5e5'],col=n=>DC[Math.max(0,db.dokter.findIndex(d=>d.nama===n))%DC.length],
+  chip=x=>`<span class="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold" style="background:${col(x.dokter)}">${x.dokter.replace(/^Drg\. /,'drg. ')}<button onclick="openForm('jadwalDokter','${x.id}')" class="opacity-50 hover:opacity-100" title="Edit"><i class="fa-solid fa-pen text-[10px]"></i></button><button onclick="del('jadwalDokter','${x.id}')" class="opacity-50 hover:opacity-100 text-red-700" title="Hapus"><i class="fa-solid fa-xmark text-[10px]"></i></button></span>`,
+  cell=(h,sh,tp)=>`<td class="p-2 align-top border border-slate-100"><div class="flex flex-wrap items-center gap-1">${a.filter(x=>x.hari===h&&String(x.shift||'').startsWith(sh)&&(x.tipe||'Standby')===tp).map(chip).join('')}<button onclick="addJ('${h}','${sh}','${tp}')" class="text-brand-600 px-1" title="Tambah"><i class="fa-solid fa-plus"></i></button></div></td>`,
+  rows=HARI.map(h=>{const sh=['Shift 1','Shift 2'].concat(a.some(x=>x.hari===h&&String(x.shift).startsWith('Panggilan'))?['Panggilan']:[]);
+   return sh.map((k,i)=>`<tr>${i?'':`<td rowspan="${sh.length}" class="p-3 font-extrabold text-brand-600 border border-slate-100 align-top">${h.toUpperCase()}</td>`}<td class="p-2 border border-slate-100 font-semibold whitespace-nowrap">${k}${JAM[k]&&JAM[k][0]?`<br><span class="text-[10px] text-slate-400 font-normal">${JAM[k][0]} - ${JAM[k][1]}</span>`:''}</td>${cell(h,k,'Standby')}${cell(h,k,'By Appointment')}</tr>`).join('')}).join('');
+  return card(head('📅 Jadwal Praktik Mingguan Dokter','Standby dan By Appointment per shift, tersinkron ke Google Sheet',`<div class="flex gap-2"><button onclick="importJadwal()" class="btn-g">Muat Jadwal Asli</button>${addBtn('jadwalDokter','Tambah Jadwal')}</div>`)
+  +`<div class="overflow-x-auto"><table class="w-full text-xs border-collapse"><thead class="bg-gold-100 text-brand-700 uppercase text-[11px]"><tr><th class="p-2 border border-slate-100 w-24">Hari</th><th class="p-2 border border-slate-100 w-24">Shift</th><th class="p-2 border border-slate-100">Standby</th><th class="p-2 border border-slate-100">By Appointment</th></tr></thead><tbody>${rows}</tbody></table></div>`)},
  dokter_absensi:db=>card(head('📋 Absensi Kehadiran Dokter','Pencatatan jam masuk dan keluar',addBtn('absensiDokter','Catat Kehadiran'))+tbl('absensiDokter',absCols('dokter'),F(db.absensiDokter))),
  perawat_data:db=>card(head('👩‍⚕️ Data Perawat Klinik','Daftar perawat asisten klinik gigi',addBtn('perawat','Tambah Perawat'))+tbl('perawat',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Nama',r=>`<b>${r.nama}</b>`],['Shift',r=>r.shift],['Phone',r=>r.phone],['Status',r=>bdg(r.status)]],F(db.perawat))),
- perawat_jadwal:db=>card(head('🗓️ Jadwal Perawat','Jadwal shift, tukar shift, dan perawat yang tidak berangkat',addBtn('jadwalPerawat','Tambah Jadwal Perawat'))+tbl('jadwalPerawat',[['Perawat',r=>`<b>${r.perawat}</b>`],['Tanggal',r=>r.tanggal],['Shift',r=>r.shift],['Info',r=>bdg(r.info)],['Tukar Dengan',r=>r.tukarDengan||'-'],['Keterangan',r=>r.keterangan||'-']],F(db.jadwalPerawat).sort((a,b)=>a.tanggal<b.tanggal?1:-1))),
+ perawat_jadwal:db=>{const a=F(db.jadwalPerawat),y=pm.getFullYear(),m=pm.getMonth(),off=(new Date(y,m,1).getDay()+6)%7,n=new Date(y,m+1,0).getDate(),td=today(),
+  hd=head('🗓️ Jadwal Perawat','PG 1 = Admin, PG 2 = Asisten. Klik nama untuk edit, tukar shift, atau tandai tidak berangkat',addBtn('jadwalPerawat','Tambah Jadwal Perawat')),
+  bar=`<div class="flex flex-wrap items-center gap-2 mb-4 text-xs"><button onclick="pmNav(-1)" class="ic text-brand-600"><i class="fa-solid fa-chevron-left"></i></button><b class="text-sm text-brand-700 w-36 text-center">${pm.toLocaleDateString('id-ID',{month:'long',year:'numeric'})}</b><button onclick="pmNav(1)" class="ic text-brand-600"><i class="fa-solid fa-chevron-right"></i></button><button onclick="pmode=pmode==='kalender'?'tabel':'kalender';render()" class="btn-g ml-auto">${pmode==='kalender'?'Tampilan Tabel':'Tampilan Kalender'}</button><button onclick="importJadwal()" class="btn-g">Muat Jadwal Asli</button></div>`;
+  if(pmode==='tabel')return card(hd+bar+tbl('jadwalPerawat',[['Tanggal',r=>r.tanggal],['Shift',r=>String(r.shift).split(' (')[0]],['Peran',r=>r.peran||'-'],['Perawat',r=>`<b>${r.perawat}</b>`],['Info',r=>bdg(r.info)],['Tukar Dengan',r=>r.tukarDengan||'-'],['Keterangan',r=>r.keterangan||'-']],a.filter(x=>x.tanggal.slice(0,7)===lokal(pm).slice(0,7)).sort((p,q)=>(p.tanggal+p.shift)>(q.tanggal+q.shift)?1:-1)));
+  const chip=x=>`<button onclick="openForm('jadwalPerawat','${x.id}')" class="hover:underline ${x.info==='Tidak Berangkat'?'line-through text-red-600':x.info==='Tukar Shift'?'text-amber-700 font-bold':'font-semibold'}" title="${esc(x.info+(x.keterangan?': '+x.keterangan:''))}">${x.perawat}</button>`,
+  tds=Array(off).fill('<td class="border border-slate-100 bg-slate-50"></td>');
+  for(let d=1;d<=n;d++){const s=lokal(new Date(y,m,d)),sh=[1,2].map(k=>{const e=a.filter(x=>x.tanggal===s&&String(x.shift).startsWith('Shift '+k)),g=p=>e.filter(x=>String(x.peran||'').startsWith(p)).map(chip).join(', ')||'-';
+    return `<div class="mt-1"><b class="text-brand-600">Shift ${k}</b><br><span class="text-slate-400">Admin</span> ${g('PG 1')}<br><span class="text-slate-400">Asisten</span> ${g('PG 2')}</div>`}).join('');
+   tds.push(`<td class="border border-slate-100 p-2 align-top text-[11px] ${s===td?'bg-gold-100/70':''}"><div class="flex justify-between"><b class="${s===td?'text-brand-600':''}">${d}</b><button onclick="openForm('jadwalPerawat',null,{tanggal:'${s}'})" class="text-brand-600" title="Tambah"><i class="fa-solid fa-plus"></i></button></div>${sh}</td>`)}
+  while(tds.length%7)tds.push('<td class="border border-slate-100 bg-slate-50"></td>');
+  const rows=[];for(let i=0;i<tds.length;i+=7)rows.push(`<tr>${tds.slice(i,i+7).join('')}</tr>`);
+  return card(hd+bar+`<div class="overflow-x-auto"><table class="w-full min-w-[820px] table-fixed border-collapse"><thead class="bg-gold-100 text-brand-700 text-[11px] uppercase"><tr>${['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'].map(h=>`<th class="p-2 border border-slate-100">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`)},
  perawat_absensi:db=>card(head('📋 Absensi Kehadiran Perawat','Pencatatan jam masuk dan keluar',addBtn('absensiPerawat','Catat Kehadiran'))+tbl('absensiPerawat',absCols('perawat'),F(db.absensiPerawat))),
  laporan_pendapatan:db=>{const a=F(db.transaksi);return card(head('📊 Laporan Akhir Full Pendapatan','Total transaksi lunas: '+rp(a.reduce((s,t)=>s+t.total,0)),`<button onclick="window.print()" class="btn-p"><i class="fa-solid fa-print mr-1"></i> Print Laporan</button>`)+tbl('transaksi',[['ID',r=>r.id],['Tanggal',r=>r.tgl],['Pasien',r=>r.pasien],['Dokter',r=>r.dokter],['Layanan',r=>r.layanan],['Total',r=>`<b>${rp(r.total)}</b>`],['Metode',r=>r.metode]],a,false))},
  laporan_absensi_dokter:rep('absensiDokter','Laporan Rekap Absensi Dokter','dokter'),
