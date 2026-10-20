@@ -23,6 +23,20 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf6f0;color:#1e293b
 .btn-g{background:#f1f5f9;color:#475569;font-weight:700;font-size:12px;padding:.6rem 1rem;border-radius:1rem}
 .ic{padding:.5rem;border-radius:.75rem}.ic:hover{background:#f1f5f9}
 .cal-on{background:#6d0f26;color:#fff;font-weight:700}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background:#fff!important; color:#111!important; height:auto!important; overflow:visible!important; font-size:10pt!important; }
+  body * { visibility:hidden!important; }
+  #content, #content * { visibility:visible!important; }
+  #content { position:absolute!important; left:0!important; top:0!important; width:100%!important; height:auto!important; max-height:none!important; overflow:visible!important; padding:0!important; margin:0!important; }
+  #content button, #content input, #content select, #content .no-print { display:none!important; }
+  #content .card-shadow { box-shadow:none!important; border:1px solid #ddd!important; break-inside:avoid; }
+  #content table { width:100%!important; border-collapse:collapse!important; font-size:8pt!important; }
+  #content th, #content td { border:1px solid #bbb!important; padding:5px!important; color:#111!important; }
+  #content h1, #content h2, #content h3 { color:#111!important; }
+  #mainApp, aside, header, #right, #nav, #modal, #toasts { display:none!important; }
+}
 </style>
 </head>
 <body class="h-full overflow-hidden text-sm antialiased">
@@ -36,11 +50,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf6f0;color:#1e293b
       <p class="text-xs text-slate-400">Sistem Manajemen Admin & Operasional Klinik</p>
     </div>
     <form onsubmit="login(event)" class="space-y-4">
-      <label class="lb">Username / ID Admin<input class="inp py-3" value="admin_alisha" required></label>
-      <label class="lb">Kata Sandi<input type="password" class="inp py-3" value="123456" required></label>
+      <label class="lb">Username<input id="loginUsername" name="username" autocomplete="username" class="inp py-3" placeholder="Masukkan username" required></label>
+      <label class="lb">Kata Sandi<input id="loginPassword" name="password" type="password" autocomplete="current-password" class="inp py-3" placeholder="Masukkan kata sandi" required></label>
       <button class="btn-p w-full py-3.5">Masuk ke Dashboard Admin</button>
     </form>
-    <button onclick="login()" class="w-full py-2.5 bg-gold-100 hover:bg-gold-300 text-brand-700 rounded-2xl font-bold text-xs"><i class="fa-solid fa-bolt mr-1"></i> Bypass Masuk Mode Demo Admin</button>
   </div>
 </div>
 
@@ -334,6 +347,9 @@ function importJadwal(){if(!confirm('Ganti seluruh jadwal dokter & perawat denga
  db.jadwalDokter=JSON.parse(JSON.stringify(initialData.jadwalDokter));db.jadwalPerawat=JSON.parse(JSON.stringify(initialData.jadwalPerawat));saveDB(db);toast('Jadwal asli dimuat!','success');render()}
 function del(c,id){if(!confirm('Hapus data ini?'))return;const db=getDB();db[c]=db[c].filter(x=>x.id!==id);saveDB(db);toast('Data dihapus.');render()}
 
+// Konfigurasi login awal: setelah file dibuka secara lokal, set akun melalui console browser:
+// localStorage.setItem('dentalClinicAuth', JSON.stringify({username:'USERNAME_PILIHAN', password:'KATA_SANDI_PILIHAN'}))
+// Catatan: autentikasi localStorage hanya untuk prototipe, bukan keamanan produksi.
 // ===== VIEW =====
 const absCols=w=>[['Nama',r=>`<b>${r[w]}</b>`],['Tanggal',r=>r.tanggal],['Status',r=>bdg(r.status)],['Jam Masuk',r=>r.jamMasuk],['Jam Keluar',r=>r.jamKeluar]];
 const rep=(k,t,w)=>db=>{const a=F(db[k]),c=s=>a.filter(x=>x.status===s).length;
@@ -356,12 +372,22 @@ const V={
   <label class="lb">Dokter Penanggung Jawab<select id="tx_d" class="inp">${db.dokter.map(d=>`<option>${d.nama}</option>`).join('')}</select></label>
   <label class="lb">Layanan Gigi<select id="tx_l" onchange="calcTx(this.value)" class="inp"><option value="">-- Pilih Layanan --</option>${db.layanan.map(l=>`<option value="${l.id}">${l.nama} - ${rp(l.harga)}</option>`).join('')}</select></label>
   <label class="lb">Tanggal Transaksi<input id="tx_t" type="date" value="${today()}" class="inp"></label>
+  <label class="lb">Shift Pendapatan<select id="tx_shift" class="inp"><option value="Shift 1 (10:00 - 15:00)">Shift 1 (10:00 - 15:00)</option><option value="Shift 2 (15:00 - 20:00)">Shift 2 (15:00 - 20:00)</option></select></label>
   <div class="lb">Metode Pembayaran<div class="grid grid-cols-3 gap-2 mt-1">${['Tunai','QRIS','Transfer Bank'].map((m,i)=>`<label class="border p-2 rounded-xl text-center cursor-pointer text-[11px]"><input type="radio" name="tx_m" value="${m}" ${i?'':'checked'}> ${m}</label>`).join('')}</div></div>
   <div class="bg-gold-100 p-3 rounded-2xl flex justify-between font-bold text-xs"><span>Total Tagihan:</span><span id="tx_tot" class="text-base text-brand-600">Rp 0</span></div>
   <button class="btn-p w-full py-3">Selesaikan Transaksi & Bayar</button></form>`)}
-  <div class="lg:col-span-2">${card(head('Riwayat Transaksi','Pembayaran terkonfirmasi')+tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${r.pasien}</b>`],['Tindakan',r=>r.layanan],['Total',r=>`<b>${rp(r.total)}</b>`],['Metode',r=>r.metode],['Status',r=>bdg(r.status)],['Nota',r=>`<button onclick="invoice('${r.id}')" class="text-brand-600 font-bold bg-brand-50 px-2.5 py-1 rounded-xl"><i class="fa-solid fa-print"></i></button>`]],F(db.transaksi),false))}</div></div>`,
- rekap_pendapatan:db=>{const t=db.transaksi.reduce((s,i)=>s+i.total,0),b=(l,v)=>`<div class="p-4 rounded-2xl bg-gold-100/60"><span class="text-[10px] font-bold text-slate-400 uppercase">${l}</span><h3 class="text-xl font-extrabold text-brand-600 mt-1">${v}</h3></div>`;
-  return card(head('💰 Rekapitulasi Pendapatan','Agregat pemasukan klinik')+`<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${b('Total Omset Lunas',rp(t))}${b('Rata-Rata per Transaksi',rp(Math.round(t/(db.transaksi.length||1))))}${b('Volume Transaksi',db.transaksi.length+' Pembayaran')}</div>`)},
+  <div class="lg:col-span-2">${card(head('Riwayat Transaksi','Pembayaran terkonfirmasi')+tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Shift',r=>r.shift||'Belum ditentukan'],['Pasien',r=>`<b>${r.pasien}</b>`],['Tindakan',r=>r.layanan],['Total',r=>`<b>${rp(r.total)}</b>`],['Metode',r=>r.metode],['Status',r=>bdg(r.status)],['Nota',r=>`<button onclick="invoice('${r.id}')" class="text-brand-600 font-bold bg-brand-50 px-2.5 py-1 rounded-xl"><i class="fa-solid fa-print"></i></button>`]],F(db.transaksi),false))}</div></div>`,
+ rekap_pendapatan:db=>{
+  const a=F(db.transaksi).filter(x=>(!rng.a||x.tgl>=rng.a)&&(!rng.b||x.tgl<=rng.b)&&(!rng.shift||x.shift===rng.shift));
+  const total=xs=>xs.filter(x=>x.status==='Lunas').reduce((s,i)=>s+(Number(i.total)||0),0);
+  const s1=total(a.filter(x=>(x.shift||'') .startsWith('Shift 1')));
+  const s2=total(a.filter(x=>(x.shift||'') .startsWith('Shift 2')));
+  const t=total(a),b=(l,v)=>`<div class="p-4 rounded-2xl bg-gold-100/60"><span class="text-[10px] font-bold text-slate-500 uppercase">${l}</span><h3 class="text-xl font-extrabold text-brand-600 mt-1">${v}</h3></div>`;
+  return card(head('💰 Rekapitulasi Pendapatan','Rekap berdasarkan periode dan shift',`<button onclick="window.print()" class="btn-p"><i class="fa-solid fa-file-pdf mr-1"></i> Cetak / Simpan PDF</button>`)+
+  `<div class="flex flex-wrap items-end gap-3 mb-4"><label class="lb">Dari tanggal<input type="date" class="inp" value="${rng.a}" onchange="rng.a=this.value;render()"></label><label class="lb">Sampai tanggal<input type="date" class="inp" value="${rng.b}" onchange="rng.b=this.value;render()"></label><label class="lb">Shift<select class="inp" onchange="rng.shift=this.value"><option value="">Semua Shift</option><option value="Shift 1 (10:00 - 15:00)" ${rng.shift==='Shift 1 (10:00 - 15:00)'?'selected':''}>Shift 1 (10:00 - 15:00)</option><option value="Shift 2 (15:00 - 20:00)" ${rng.shift==='Shift 2 (15:00 - 20:00)'?'selected':''}>Shift 2 (15:00 - 20:00)</option></select></label><button class="btn-g" onclick="rng={a:'',b:'',shift:''};render()">Reset Filter</button></div>
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">${b('Total Pendapatan Lunas',rp(t))}${b('Pendapatan Shift 1',rp(s1))}${b('Pendapatan Shift 2',rp(s2))}${b('Jumlah Transaksi',a.length+' transaksi')}</div>
+  <div class="mt-4">${tbl('transaksi',[['Tanggal',r=>r.tgl],['Shift',r=>r.shift||'Belum ditentukan'],['Pasien',r=>r.pasien],['Dokter',r=>r.dokter],['Layanan',r=>r.layanan],['Total',r=>rp(r.total)],['Status',r=>r.status]],a,false)}</div>`)
+ },
 
  pendapatan_dokter:db=>{
   const t=F(db.transaksi).filter(x=>(!rng.a||x.tgl>=rng.a)&&(!rng.b||x.tgl<=rng.b)),
@@ -442,12 +468,12 @@ function render(){const db=getDB(),g=$('gs');
 function calcTx(id){const l=getDB().layanan.find(x=>x.id===id);tx=l?l.harga:0;$('tx_tot').textContent=rp(tx)}
 function prosesTx(e){e.preventDefault();if(!tx)return toast('Pilih layanan gigi terlebih dahulu!','warning');
  const db=getDB(),l=db.layanan.find(x=>x.id===$('tx_l').value);
- db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:$('tx_t').value||today(),pasien:$('tx_p').value,dokter:$('tx_d').value,layanan:l.nama,total:tx,metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
+ db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:$('tx_t').value||today(),pasien:$('tx_p').value,dokter:$('tx_d').value,layanan:l.nama,shift:$('tx_shift').value,total:tx,metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
  saveDB(db);tx=0;toast('Transaksi sukses!','success');render()}
 function invoice(id){const db=getDB(),t=db.transaksi.find(x=>x.id===id),p=db.pengaturan;if(!t)return;
  const r=(a,b)=>`<div class="flex justify-between"><span class="text-slate-500">${a}</span><b>${b}</b></div>`;
  showModal(`<div class="text-xs max-w-sm mx-auto"><div class="text-center pb-3 border-b border-dashed border-slate-300"><img src="${LOGO}" class="w-14 h-14 rounded-full mx-auto mb-1"><h3 class="font-extrabold text-sm uppercase">${p.namaKlinik}</h3><p class="text-[10px] text-slate-500">${p.alamat}<br>Telp: ${p.telepon}</p></div>
- <div class="py-3 space-y-1 border-b border-dashed border-slate-300">${r('No Invoice',t.id)}${r('Tanggal',t.tgl)}${r('Pasien',t.pasien)}${r('Dokter',t.dokter)}</div>
+ <div class="py-3 space-y-1 border-b border-dashed border-slate-300">${r('No Invoice',t.id)}${r('Tanggal',t.tgl)}${r('Shift',t.shift||'Belum ditentukan')}${r('Pasien',t.pasien)}${r('Dokter',t.dokter)}</div>
  <div class="py-3 border-b border-dashed border-slate-300">${r(t.layanan,rp(t.total))}</div>
  <div class="py-3 space-y-1"><div class="flex justify-between text-sm font-extrabold"><span>TOTAL BAYAR</span><span class="text-brand-600">${rp(t.total)}</span></div>${r('Metode',t.metode)}</div>
  <p class="text-center text-[10px] text-slate-400">Terima kasih atas kunjungan Anda di ${p.namaKlinik}!</p>
