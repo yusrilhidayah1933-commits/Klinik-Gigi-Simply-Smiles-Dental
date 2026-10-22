@@ -562,5 +562,36 @@ getDB();
   setTimeout(()=>{busy=false;_print()},250)};
  window.addEventListener('afterprint',()=>document.body.classList.remove('inv'));
 })();
+  <!-- ===== REVISI LOGIN =====
+     TEMPEL BLOK INI SEBELUM </body>, DI BAWAH blok revisi sebelumnya. -->
+<script>
+(function(){
+ // >>> GANTI DUA BARIS INI dengan username dan kata sandi pilihan Anda <<<
+ const USERNAME='admin_simply';
+ const PASSWORD='Semarang123';
+
+ const MAX=5, LOCK_MS=5*60*1000;           // salah 5x = terkunci 5 menit
+ const _login=window.login;
+ const st=()=>{try{return JSON.parse(localStorage.getItem('loginGuard'))||{n:0,until:0}}catch(e){return{n:0,until:0}}};
+ const sv=o=>{try{localStorage.setItem('loginGuard',JSON.stringify(o))}catch(e){}};
+
+ window.login=function(e){
+  e.preventDefault();
+  const g=st(),now=Date.now();
+  if(g.until>now)return toast('Terlalu banyak percobaan. Coba lagi '+Math.ceil((g.until-now)/60000)+' menit lagi.','warning');
+  const u=$('loginUsername').value.trim(),p=$('loginPassword').value;
+  if(u===USERNAME&&p===PASSWORD){
+   sv({n:0,until:0});$('loginPassword').value='';
+   return _login(e);
+  }
+  g.n++;if(g.n>=MAX){g.until=now+LOCK_MS;g.n=0}
+  sv(g);$('loginPassword').value='';
+  toast(g.until>now?'Akun dikunci 5 menit karena 5x salah.':'Username atau kata sandi salah!','warning');
+ };
+
+ const _logout=window.logout;
+ window.logout=function(){_logout();$('loginUsername').value='';$('loginPassword').value=''};
+})();
+</script>
 </script>
 </html>
