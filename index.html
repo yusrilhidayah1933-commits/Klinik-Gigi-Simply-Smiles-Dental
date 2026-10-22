@@ -486,8 +486,7 @@ function saveSet(e){e.preventDefault();const db=getDB();['namaKlinik','slogan','
 getDB();
 </script>
 </body>
-  <!-- ===== REVISI: multi layanan + cetak PDF sinkron =====
-     TEMPEL BLOK INI TEPAT SEBELUM baris </body> di index.html (setelah </script> terakhir). -->
+ <!-- ===== SATU BLOK LENGKAP: tempel SEBELUM </body> ===== -->
 <style>
 @media print{
  html,body{height:auto!important;overflow:visible!important}
@@ -562,36 +561,58 @@ getDB();
   setTimeout(()=>{busy=false;_print()},250)};
  window.addEventListener('afterprint',()=>document.body.classList.remove('inv'));
 })();
-  <!-- ===== REVISI LOGIN =====
-     TEMPEL BLOK INI SEBELUM </body>, DI BAWAH blok revisi sebelumnya. -->
+</script>
+
 <script>
 (function(){
- // >>> GANTI DUA BARIS INI dengan username dan kata sandi pilihan Anda <<<
- const USERNAME='admin_simply';
- const PASSWORD='Semarang123';
+ // >>> UBAH DI SINI JIKA PERLU <<<
+ var USERNAME='admin_simply';
+ var PASSWORD='Semarang123';
 
- const MAX=5, LOCK_MS=5*60*1000;           // salah 5x = terkunci 5 menit
- const _login=window.login;
- const st=()=>{try{return JSON.parse(localStorage.getItem('loginGuard'))||{n:0,until:0}}catch(e){return{n:0,until:0}}};
- const sv=o=>{try{localStorage.setItem('loginGuard',JSON.stringify(o))}catch(e){}};
+ var MAX=5, LOCK_MS=5*60*1000;   // salah 5x = terkunci 5 menit
+ var KEY='loginGuard';
 
- window.login=function(e){
-  e.preventDefault();
-  const g=st(),now=Date.now();
-  if(g.until>now)return toast('Terlalu banyak percobaan. Coba lagi '+Math.ceil((g.until-now)/60000)+' menit lagi.','warning');
-  const u=$('loginUsername').value.trim(),p=$('loginPassword').value;
-  if(u===USERNAME&&p===PASSWORD){
-   sv({n:0,until:0});$('loginPassword').value='';
-   return _login(e);
+ function getG(){try{return JSON.parse(localStorage.getItem(KEY))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
+ function setG(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+ function msg(t){if(typeof toast==='function')toast(t,'warning');else alert(t)}
+
+ // Pemeriksa dipasang di fase "capture": berjalan SEBELUM fungsi login() bawaan,
+ // sehingga login salah pasti diblokir walau posisi kode ini berbeda.
+ document.addEventListener('submit',function(e){
+  var f=e.target,u=f.querySelector&&f.querySelector('#loginUsername'),p=f.querySelector&&f.querySelector('#loginPassword');
+  if(!u||!p)return;                              // bukan form login
+  var g=getG(),now=Date.now();
+
+  if(g.until>now){
+   e.preventDefault();e.stopImmediatePropagation();
+   msg('Terlalu banyak percobaan. Coba lagi '+Math.ceil((g.until-now)/60000)+' menit lagi.');
+   return;
   }
-  g.n++;if(g.n>=MAX){g.until=now+LOCK_MS;g.n=0}
-  sv(g);$('loginPassword').value='';
-  toast(g.until>now?'Akun dikunci 5 menit karena 5x salah.':'Username atau kata sandi salah!','warning');
- };
+  if(u.value.trim()===USERNAME&&p.value===PASSWORD){
+   setG({n:0,until:0});
+   setTimeout(function(){p.value=''},300);       // lanjut ke login() bawaan
+   return;
+  }
+  e.preventDefault();e.stopImmediatePropagation();
+  g.n=(g.n||0)+1;
+  if(g.n>=MAX){g.until=now+LOCK_MS;g.n=0;msg('Akun dikunci 5 menit karena 5x salah.')}
+  else msg('Username atau kata sandi salah! (sisa percobaan: '+(MAX-g.n)+')');
+  setG(g);p.value='';p.focus();
+ },true);
 
- const _logout=window.logout;
- window.logout=function(){_logout();$('loginUsername').value='';$('loginPassword').value=''};
+ // Kosongkan kolom login saat keluar
+ document.addEventListener('click',function(e){
+  var b=e.target.closest&&e.target.closest('[onclick*="logout"]');
+  if(!b)return;
+  setTimeout(function(){
+   var u=document.getElementById('loginUsername'),p=document.getElementById('loginPassword');
+   if(u)u.value='';if(p)p.value='';
+  },100);
+ },true);
+
+ console.log('Login guard aktif');
 })();
+</script>
 </script>
 </script>
 </html>
