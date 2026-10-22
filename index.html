@@ -486,4 +486,81 @@ function saveSet(e){e.preventDefault();const db=getDB();['namaKlinik','slogan','
 getDB();
 </script>
 </body>
+  <!-- ===== REVISI: multi layanan + cetak PDF sinkron =====
+     TEMPEL BLOK INI TEPAT SEBELUM baris </body> di index.html (setelah </script> terakhir). -->
+<style>
+@media print{
+ html,body{height:auto!important;overflow:visible!important}
+ #mainApp{display:block!important;height:auto!important;overflow:visible!important;padding:0!important}
+ #mainApp>main,#mainApp>main>div,#content{display:block!important;height:auto!important;overflow:visible!important;position:static!important;padding:0!important}
+ #content .overflow-x-auto{overflow:visible!important}
+ #content .lb,#syncChip{display:none!important}
+ #content tr{break-inside:avoid}
+ body.inv #mainApp{display:none!important}
+ body.inv #modal{display:block!important;position:static!important;background:#fff!important;backdrop-filter:none!important}
+ body.inv #modal,body.inv #modal *{visibility:visible!important}
+ body.inv #mbody{box-shadow:none!important;max-height:none!important;overflow:visible!important;max-width:320px!important;margin:0 auto!important}
+ body.inv #mbody button{display:none!important}
+}
+</style>
+<script>
+(function(){
+ chip.id='syncChip';
+
+ // ---------- Helper layanan ganda ----------
+ let cart=[];
+ window.lines=function(t){try{const a=JSON.parse(t.items);if(Array.isArray(a)&&a.length)return a.map(x=>({nama:x.nama,harga:Number(x.harga)||0,qty:Number(x.qty)||1}))}catch(e){}return [{nama:t.layanan,harga:Number(t.total)||0,qty:1}]};
+ const agg=(a,f)=>{const m={};a.forEach(t=>lines(t).forEach(i=>m[i.nama]=(m[i.nama]||0)+f(i)));return m};
+
+ window.addCart=function(){const id=$('tx_l').value;if(!id)return toast('Pilih layanan terlebih dahulu!','warning');
+  const l=getDB().layanan.find(x=>x.id===id),q=Math.max(1,parseInt($('tx_q').value)||1),e=cart.find(x=>x.id===id);
+  if(e)e.qty+=q;else cart.push({id,nama:l.nama,harga:l.harga,qty:q});$('tx_l').value='';$('tx_q').value=1;drawCart()};
+ window.rmCart=function(i){cart.splice(i,1);drawCart()};
+ window.drawCart=function(){if(!$('tx_cart'))return;tx=cart.reduce((s,x)=>s+x.harga*x.qty,0);
+  $('tx_cart').innerHTML=cart.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${x.nama} × ${x.qty}</span><span><b>${rp(x.harga*x.qty)}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada layanan dipilih</p>';
+  $('tx_tot').textContent=rp(tx)};
+
+ // ---------- Form kasir: pilih banyak layanan ----------
+ const vTx=V.transaksi;
+ V.transaksi=db=>vTx(db).replace(/<label class="lb">Layanan Gigi<select id="tx_l"[^>]*>([\s\S]*?)<\/select><\/label>/,
+  (m,o)=>`<div class="lb">Layanan Gigi (boleh lebih dari 1)<div class="flex gap-2 mt-1"><select id="tx_l" class="inp">${o}</select><input id="tx_q" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah"><button type="button" onclick="addCart()" class="btn-p whitespace-nowrap">+ Tambah</button></div></div><div id="tx_cart" class="space-y-1"></div>`);
+ INIT.transaksi=()=>drawCart();
+
+ window.prosesTx=function(e){e.preventDefault();if(!cart.length)return toast('Tambahkan minimal 1 layanan gigi!','warning');
+  const db=getDB(),items=cart.map(x=>({nama:x.nama,harga:x.harga,qty:x.qty}));
+  db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:$('tx_t').value||today(),pasien:$('tx_p').value,dokter:$('tx_d').value,
+   layanan:items.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),items:JSON.stringify(items),shift:$('tx_shift').value,
+   total:items.reduce((s,x)=>s+x.harga*x.qty,0),metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
+  saveDB(db);cart=[];tx=0;toast('Transaksi sukses!','success');render()};
+
+ // ---------- Bagian terkait: grafik, statistik, ringkasan, nota ----------
+ const iDash=INIT.dashboard;
+ INIT.dashboard=db=>{iDash(db);const s=agg(db.transaksi,i=>i.qty);
+  mk('c2',{type:'doughnut',data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:COL}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}})};
+ const iSt=INIT.statistik;
+ INIT.statistik=db=>{iSt(db);const g=agg(db.transaksi,i=>i.harga*i.qty);
+  mk('c1',{type:'bar',data:{labels:Object.keys(g),datasets:[{label:'Pendapatan (Rp)',data:Object.values(g),backgroundColor:'#6d0f26'}]},options:{responsive:true,maintainAspectRatio:false}})};
+ const vR=V.laporan_ringkasan;
+ V.laporan_ringkasan=db=>{const g=agg(db.transaksi,i=>i.qty),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-';
+  return vR(db).replace(/(Layanan Terlaris: <b>)[\s\S]*?(<\/b>)/,(m,a,b)=>a+top+b)};
+ const vRk=V.rekap_pendapatan;
+ V.rekap_pendapatan=db=>vRk(db).replace('onchange="rng.shift=this.value"','onchange="rng.shift=this.value;render()"');
+
+ const _inv=window.invoice;
+ window.invoice=function(id){_inv(id);const t=getDB().transaksi.find(x=>x.id===id);if(!t)return;
+  const sp=[...$('mbody').querySelectorAll('span.text-slate-500')].find(x=>x.textContent===t.layanan);if(!sp)return;
+  const row=sp.parentElement;
+  row.insertAdjacentHTML('beforebegin',lines(t).map(i=>`<div class="flex justify-between"><span class="text-slate-500">${i.nama}${i.qty>1?' × '+i.qty+' @ '+rp(i.harga):''}</span><b>${rp(i.harga*i.qty)}</b></div>`).join(''));
+  row.remove()};
+
+ // ---------- Cetak PDF: sinkron dulu, lalu print (memperbaiki layar putih) ----------
+ const _print=window.print.bind(window);
+ let busy=false;
+ window.print=async function(){if(busy)return;busy=true;toast('Menyinkronkan data sebelum cetak...');
+  try{if(sheetUrl){if(syncTimer){clearTimeout(syncTimer);syncTimer=null;await syncPush()}await syncPull()}}catch(e){}
+  if(!$('modal').classList.contains('hidden'))document.body.classList.add('inv');
+  setTimeout(()=>{busy=false;_print()},250)};
+ window.addEventListener('afterprint',()=>document.body.classList.remove('inv'));
+})();
+</script>
 </html>
