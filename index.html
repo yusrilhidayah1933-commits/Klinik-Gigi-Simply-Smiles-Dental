@@ -756,6 +756,7 @@ getDB();
   setTimeout(function(){var u=document.getElementById('loginUsername'),p=document.getElementById('loginPassword');if(u)u.value='';if(p)p.value=''},100);
  },true);
 })();
+</script>
   <script>
 // ===== Full Shift Perawat (10:00 - 20:00): tempel sebelum </body>, setelah script utama =====
 (function(){
@@ -782,7 +783,6 @@ getDB();
    else if(x.perawat!==o.perawat&&x.peran===o.peran&&ks.some(k=>cov(x,k)))w.push(`${x.perawat} sudah bertugas sebagai ${o.peran} (${nm(x)}) pada tanggal itu.`)});
   return w.length?w.join('\n')+'\n\nTetap simpan?':''};
 })();
-</script>
 </script>
 </body>
 </html>
