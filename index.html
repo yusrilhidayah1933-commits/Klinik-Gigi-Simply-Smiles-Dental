@@ -727,7 +727,7 @@ getDB();
  // ===== Render: pencarian aktif di semua halaman, titik notifikasi, tombol reservasi =====
  const _render=window.render;
  window.render=function(){_render();const db=getDB(),g=$('gs'),n=notifs(db).length,dot=document.querySelector('#mainApp header .bg-red-500');
-  if(dot)dot.style.display=n?'':'none';g.disabled=false;g.placeholder=(PH[cur]?'Cari '+PH[cur]:'Cari')+'... (Enter = semua modul)';decorRes()};
+  if(dot)dot.style.display=n?'':'none';g.disabled=false;g.placeholder=(PH[cur]?'Cari '+PH[cur]:'Cari')+'...';decorRes()};
 })();
 </script>
 
