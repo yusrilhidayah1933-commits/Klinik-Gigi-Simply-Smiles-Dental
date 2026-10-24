@@ -756,6 +756,33 @@ getDB();
   setTimeout(function(){var u=document.getElementById('loginUsername'),p=document.getElementById('loginPassword');if(u)u.value='';if(p)p.value=''},100);
  },true);
 })();
+  <script>
+// ===== Full Shift Perawat (10:00 - 20:00): tempel sebelum </body>, setelah script utama =====
+(function(){
+ const FULL='Full Shift (10:00 - 20:00)';
+ const isFull=x=>String(x.shift||'').startsWith('Full Shift');
+ const nm=x=>String(x.shift).split(' (')[0];
+ JAM['Full Shift']=['10:00','20:00'];
+
+ // 1. Pilihan di form Data Perawat dan form Jadwal Perawat
+ const setOpt=(c,k,arr)=>{const f=CFG[c].f.find(x=>x[0]===k);if(f)f[3]=arr};
+ setOpt('perawat','shift',[SHIFT_B[0],SHIFT_B[1],FULL,SHIFT_B[2],SHIFT_B[3]]);
+ setOpt('jadwalPerawat','shift',[SHIFT_D[0],SHIFT_D[1],FULL]);
+
+ // 2. Kalender jadwal: Full Shift tampil di Shift 1 dan Shift 2 (tabel tetap apa adanya)
+ const o=V.perawat_jadwal;
+ V.perawat_jadwal=db=>{if(pmode==='tabel')return o(db);const a=[];
+  db.jadwalPerawat.forEach(x=>{if(isFull(x))[0,1].forEach(i=>a.push({...x,shift:SHIFT_D[i],perawat:x.perawat+' (Full)'}));else a.push(x)});
+  return o({...db,jadwalPerawat:a})};
+
+ // 3. Validasi bentrok jadwal perawat
+ CFG.jadwalPerawat.chk=(o,id,db)=>{if(o.info==='Tidak Berangkat')return'';const w=[],cov=(x,k)=>isFull(x)||String(x.shift).startsWith('Shift '+k),ks=[1,2].filter(k=>cov(o,k));
+  db.jadwalPerawat.filter(x=>x.id!==id&&x.tanggal===o.tanggal&&x.info!=='Tidak Berangkat').forEach(x=>{
+   if(x.perawat===o.perawat&&(isFull(x)||isFull(o)))w.push(`${o.perawat} sudah punya jadwal lain pada ${o.tanggal} (${nm(x)}).`);
+   else if(x.perawat!==o.perawat&&x.peran===o.peran&&ks.some(k=>cov(x,k)))w.push(`${x.perawat} sudah bertugas sebagai ${o.peran} (${nm(x)}) pada tanggal itu.`)});
+  return w.length?w.join('\n')+'\n\nTetap simpan?':''};
+})();
+</script>
 </script>
 </body>
 </html>
