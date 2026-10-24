@@ -486,7 +486,7 @@ function saveSet(e){e.preventDefault();const db=getDB();['namaKlinik','slogan','
 getDB();
 </script>
 </body>
- <!-- ===== SATU BLOK LENGKAP: tempel SEBELUM </body> ===== -->
+<!-- ===== BLOK REVISI: GANTI semua isi file dari baris "</body>" (sebelum komentar "SATU BLOK LENGKAP") sampai akhir file dengan isi file ini ===== -->
 <style>
 @media print{
  html,body{height:auto!important;overflow:visible!important}
@@ -498,120 +498,267 @@ getDB();
  body.inv #mainApp{display:none!important}
  body.inv #modal{display:block!important;position:static!important;background:#fff!important;backdrop-filter:none!important}
  body.inv #modal,body.inv #modal *{visibility:visible!important}
- body.inv #mbody{box-shadow:none!important;max-height:none!important;overflow:visible!important;max-width:320px!important;margin:0 auto!important}
+ body.inv #mbody{box-shadow:none!important;max-height:none!important;overflow:visible!important;max-width:320px!important;margin:0 auto!important;padding:0!important}
+ body.inv.th #mbody{max-width:100%!important;font-size:9pt}
  body.inv #mbody button{display:none!important}
+}
+@media(max-width:767px){
+ #mainApp{padding:8px!important;gap:8px!important}
+ #mainApp>aside{width:56px!important;padding:8px!important}
+ #mainApp>aside .nv{padding:.6rem!important;justify-content:center}
+ header .w-72{width:100%!important}
+ #right.fixed{left:8px!important;right:8px!important;top:64px!important;width:auto!important;max-height:80vh}
+ #content table{font-size:11px}
+ #content .card-shadow{padding:12px}
 }
 </style>
 <script>
 (function(){
  chip.id='syncChip';
+ const LS=localStorage,num=v=>Number(v)||0;
+ const esch=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const paid=t=>(t.dibayar===undefined||t.dibayar==='')?(t.status==='Lunas'?num(t.total):0):num(t.dibayar);
+ const lines=t=>{try{const a=JSON.parse(t.items);if(Array.isArray(a)&&a.length)return a.map(x=>({nama:x.nama,harga:num(x.harga),qty:num(x.qty)||1}))}catch(e){}return[{nama:t.layanan,harga:num(t.total),qty:1}]};
+ const pays=t=>{try{return JSON.parse(t.cicilan)||[]}catch(e){return[]}};
+ Object.assign(STC,{'Belum Lunas':'amber',Void:'red',Menipis:'red',Aman:'emerald'});
 
- // ---------- Helper layanan ganda ----------
- let cart=[];
- window.lines=function(t){try{const a=JSON.parse(t.items);if(Array.isArray(a)&&a.length)return a.map(x=>({nama:x.nama,harga:Number(x.harga)||0,qty:Number(x.qty)||1}))}catch(e){}return [{nama:t.layanan,harga:Number(t.total)||0,qty:1}]};
+ // ===== Koleksi & field baru =====
+ initialData.rekamMedis=[];initialData.pemakaianObat=[];NEWK.push('rekamMedis','pemakaianObat');
+ CFG.pemakaianObat={t:'Pemakaian Obat',p:'PKO-',f:[['tanggal','Tanggal','date',,today],['obat','Obat / Bahan','select',()=>[...new Set(getDB().pembelianObat.map(x=>x.obat))]],['jumlah','Jumlah','number'],['catatan','Catatan','textarea','opt']]};
+ CFG.rekamMedis={t:'Rekam Medis',p:'RM-',f:[['tanggal','Tanggal Kunjungan','date',,today],['pasien','Pasien','select',()=>getDB().pasien.map(p=>p.nama+' ('+p.id+')')],['dokter','Dokter','select',()=>names('dokter')],['gigi','Nomor Gigi FDI (pisah koma, mis. 16, 26)'],['diagnosis','Diagnosis'],['tindakan','Tindakan','textarea'],['resep','Resep / Obat','textarea','opt'],['kontrolUlang','Kontrol Ulang (tanggal)','date','opt']],
+  pre:o=>{const m=(o.pasien||'').match(/\(([^()]+)\)$/);o.pasienId=m?m[1]:''}};
+ CFG.pembelianObat.f.push(['minStok','Batas Minimum Stok (opsional)','number','opt']);
+ CFG.dokter.f.splice(5,0,['komisi','Komisi / Jasa Medis (%)','number','opt']);
+ CFG.layanan.f.push(['kontrolBulan','Kontrol Ulang (bulan, 0 = tidak)','number','opt']);
+ NAV.splice(2,0,['rekam_medis','fa-notes-medical','Rekam Medis']);
+ NAV.find(n=>n[0]==='Obat')[2].splice(1,0,['obat_stok','Stok Obat']);
+ Object.assign(PH,{rekam_medis:'rekam medis',obat_stok:'stok obat'});
+
+ // ===== Relasi ID (migrasi otomatis dari data lama berbasis nama) =====
+ function fix(db){let ch=false;
+  db.transaksi.forEach(t=>{
+   if(!t.pasienId){const p=db.pasien.find(x=>x.nama===t.pasien);if(p){t.pasienId=p.id;ch=true}}
+   if(!t.dokterId){const d=db.dokter.find(x=>x.nama===t.dokter);if(d){t.dokterId=d.id;ch=true}}
+   if(t.dibayar===undefined||t.dibayar===''){t.dibayar=paid(t);ch=true}});
+  db.reservasi.forEach(r=>{if(!r.dokterId){const d=db.dokter.find(x=>x.nama===r.dokter);if(d){r.dokterId=d.id;ch=true}}});
+  return ch}
+ const _mig=window.mig;window.mig=function(db){const a=_mig(db),b=fix(db);return a||b};
+ { const d=getDB();if(fix(d))saveDB(d) }
+
+ // ===== Antrean offline =====
+ const _save=window.saveDB;window.saveDB=function(d){LS.setItem('pendSync',String(Date.now()));_save(d)};
+ window.syncPush=async function(){if(!sheetUrl)return false;const st=LS.getItem('pendSync');setSync('busy','Menyimpan ke Google Sheet...');
+  try{await sheetCall({method:'POST',body:JSON.stringify({action:'sync',db:getDB()})});if(LS.getItem('pendSync')===st)LS.removeItem('pendSync');setSync('ok','Tersimpan di Google Sheet');return true}
+  catch(e){setSync('err','Belum terkirim, masuk antrean: '+e.message);return false}};
+ const _pull=window.syncPull;
+ window.syncPull=async function(){if(!sheetUrl)return;if(LS.getItem('pendSync')&&!(await syncPush()))return;return _pull()};
+ window.addEventListener('online',()=>syncPull());
+ setInterval(()=>{if(LS.getItem('pendSync')&&sheetUrl&&navigator.onLine)syncPush()},30000);
+
+ // ===== Ganti nama merambat ke data lama =====
+ function rename(c,id,o,n){const db=getDB(),sw=(a,k)=>a.forEach(x=>{if(x[k]===o)x[k]=n});
+  if(c==='dokter'){sw(db.reservasi,'dokter');sw(db.transaksi,'dokter');sw(db.jadwalDokter,'dokter');sw(db.absensiDokter,'dokter');sw(db.rekamMedis,'dokter')}
+  if(c==='perawat'){sw(db.jadwalPerawat,'perawat');sw(db.jadwalPerawat,'tukarDengan');sw(db.absensiPerawat,'perawat')}
+  if(c==='layanan'){sw(db.reservasi,'layanan');db.transaksi.forEach(t=>{t.layanan=String(t.layanan).split(o).join(n);if(t.items)t.items=String(t.items).split(JSON.stringify(o).slice(1,-1)).join(JSON.stringify(n).slice(1,-1))})}
+  if(c==='pasien'){db.transaksi.forEach(t=>{if(t.pasienId===id)t.pasien=n});sw(db.reservasi,'nama');db.rekamMedis.forEach(r=>{if(r.pasienId===id)r.pasien=n+' ('+id+')'})}
+  saveDB(db)}
+ const _sf=window.saveForm;
+ window.saveForm=function(e,c,id){let old=null,nw=null;
+  if(id&&['pasien','dokter','layanan','perawat'].includes(c)){old=(getDB()[c].find(x=>x.id===id)||{}).nama;nw=e.target.elements.nama.value.trim()}
+  _sf(e,c,id);if(old&&nw&&old!==nw){rename(c,id,old,nw);render()}};
+
+ // ===== Hapus: konfirmasi jelas + urungkan; transaksi tidak bisa dihapus =====
+ function undoToast(c,i,r){const e=document.createElement('div');e.className='bg-slate-800 text-white text-xs px-4 py-3 rounded-2xl shadow-xl pointer-events-auto flex items-center gap-3';
+  e.innerHTML='<span>Data dihapus.</span><button class="font-bold underline text-gold-300">Urungkan</button>';
+  e.querySelector('button').onclick=()=>{const d=getDB();if(!d[c].some(x=>x.id===r.id))d[c].splice(Math.min(i,d[c].length),0,r);saveDB(d);e.remove();render();toast('Data dikembalikan','success')};
+  $('toasts').appendChild(e);setTimeout(()=>e.remove(),8000)}
+ window.del=function(c,id){if(c==='transaksi')return toast('Transaksi tidak boleh dihapus. Gunakan Void dengan alasan.','warning');
+  const db=getDB(),i=db[c].findIndex(x=>x.id===id);if(i<0)return;const r=db[c][i],lb=r.nama||r.obat||r.perawat||r.dokter||r.id;
+  if(!confirm('Hapus '+(CFG[c]?CFG[c].t:c)+' "'+lb+'" ('+r.id+')?\nBisa dikembalikan lewat tombol Urungkan selama 8 detik.'))return;
+  db[c].splice(i,1);saveDB(db);render();undoToast(c,i,r)};
+
+ // ===== Pendapatan: kecualikan Void, hitung uang yang sudah diterima =====
+ const live=db=>({...db,transaksi:db.transaksi.filter(t=>t.status!=='Void').map(t=>{const p=db.pasien.find(x=>x.id===t.pasienId),d=db.dokter.find(x=>x.id===t.dokterId),r=paid(t);
+  return {...t,pasien:p?p.nama:t.pasien,dokter:d?d.nama:t.dokter,total:r,status:r>0?'Lunas':'Belum Lunas'}})});
  const agg=(a,f)=>{const m={};a.forEach(t=>lines(t).forEach(i=>m[i.nama]=(m[i.nama]||0)+f(i)));return m};
+ ['dashboard','statistik','rekap_pendapatan','laporan_pendapatan'].forEach(k=>{const o=V[k];V[k]=db=>o(live(db))});
+ { const o=V.laporan_ringkasan;V.laporan_ringkasan=db=>{const l=live(db),g=agg(l.transaksi,i=>i.qty),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-';
+   return o(l).replace(/(Layanan Terlaris: <b>)[\s\S]*?(<\/b>)/,(m,a,b)=>a+esch(top)+b)} }
+ { const o=INIT.dashboard;INIT.dashboard=db=>{db=live(db);o(db);const s=agg(db.transaksi,i=>i.qty);
+   mk('c2',{type:'doughnut',data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:COL}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}})} }
+ { const o=INIT.statistik;INIT.statistik=db=>{db=live(db);o(db);const g=agg(db.transaksi,i=>i.harga*i.qty);
+   mk('c1',{type:'bar',data:{labels:Object.keys(g),datasets:[{label:'Pendapatan (Rp)',data:Object.values(g),backgroundColor:'#6d0f26'}]},options:{responsive:true,maintainAspectRatio:false}})} }
+ { const o=V.pendapatan_dokter;V.pendapatan_dokter=db=>{const l=live(db),t=l.transaksi.filter(x=>(!rng.a||x.tgl>=rng.a)&&(!rng.b||x.tgl<=rng.b)),
+   rows=l.dokter.map(d=>{const x=t.filter(i=>i.dokterId===d.id||i.dokter===d.nama),tot=x.reduce((s,i)=>s+i.total,0),k=num(d.komisi),j=Math.round(tot*k/100);return{n:d.nama,jml:x.length,tot,k,j,kl:tot-j}});
+   return o(l)+card(head('🧮 Komisi / Jasa Medis Dokter','Persentase diatur di Data Dokter (kolom Komisi), dihitung dari uang yang sudah diterima')
+    +tbl('dokter',[['Dokter',r=>`<b>${esch(r.n)}</b>`],['Pasien',r=>r.jml],['Pendapatan',r=>rp(r.tot)],['Komisi',r=>r.k+'%'],['Jasa Medis',r=>`<b>${rp(r.j)}</b>`],['Bagian Klinik',r=>rp(r.kl)]],rows,false))} }
 
+ // ===== Kasir: ID pasien/dokter, multi layanan, DP/cicilan, void =====
+ let cart=[],PF=null;
+ const trxId=(db,tgl)=>{const pre='TRX-'+tgl.replace(/-/g,'')+'-';let n=db.transaksi.filter(t=>String(t.id).startsWith(pre)).length+1,id;do{id=pre+String(n++).padStart(3,'0')}while(db.transaksi.some(t=>t.id===id));return id};
  window.addCart=function(){const id=$('tx_l').value;if(!id)return toast('Pilih layanan terlebih dahulu!','warning');
   const l=getDB().layanan.find(x=>x.id===id),q=Math.max(1,parseInt($('tx_q').value)||1),e=cart.find(x=>x.id===id);
-  if(e)e.qty+=q;else cart.push({id,nama:l.nama,harga:l.harga,qty:q});$('tx_l').value='';$('tx_q').value=1;drawCart()};
- window.rmCart=function(i){cart.splice(i,1);drawCart()};
+  if(e)e.qty+=q;else cart.push({id,nama:l.nama,harga:num(l.harga),qty:q});$('tx_l').value='';$('tx_q').value=1;drawCart()};
+ window.rmCart=i=>{cart.splice(i,1);drawCart()};
  window.drawCart=function(){if(!$('tx_cart'))return;tx=cart.reduce((s,x)=>s+x.harga*x.qty,0);
-  $('tx_cart').innerHTML=cart.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${x.nama} × ${x.qty}</span><span><b>${rp(x.harga*x.qty)}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada layanan dipilih</p>';
+  $('tx_cart').innerHTML=cart.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${esch(x.nama)} × ${x.qty}</span><span><b>${rp(x.harga*x.qty)}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada layanan dipilih</p>';
   $('tx_tot').textContent=rp(tx)};
-
- // ---------- Form kasir: pilih banyak layanan ----------
- const vTx=V.transaksi;
- V.transaksi=db=>vTx(db).replace(/<label class="lb">Layanan Gigi<select id="tx_l"[^>]*>([\s\S]*?)<\/select><\/label>/,
-  (m,o)=>`<div class="lb">Layanan Gigi (boleh lebih dari 1)<div class="flex gap-2 mt-1"><select id="tx_l" class="inp">${o}</select><input id="tx_q" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah"><button type="button" onclick="addCart()" class="btn-p whitespace-nowrap">+ Tambah</button></div></div><div id="tx_cart" class="space-y-1"></div>`);
- INIT.transaksi=()=>drawCart();
-
+ V.transaksi=db=>{const pn=t=>(db.pasien.find(p=>p.id===t.pasienId)||{}).nama||t.pasien,dn=t=>(db.dokter.find(d=>d.id===t.dokterId)||{}).nama||t.dokter,
+  st=t=>t.status==='Void'?'Void':paid(t)>=num(t.total)?'Lunas':'Belum Lunas',rows=F(db.transaksi).slice().sort((a,b)=>a.tgl<b.tgl?1:a.tgl>b.tgl?-1:0);
+  const form=`<h3 class="font-extrabold text-base mb-3">💳 Form Pembayaran Kasir</h3><form onsubmit="prosesTx(event)" class="space-y-3">
+  <label class="lb">Pilih Pasien<select id="tx_p" class="inp">${db.pasien.map(p=>`<option value="${p.id}">${esch(p.nama)} (${p.id})</option>`).join('')}</select></label>
+  <label class="lb">Dokter Penanggung Jawab<select id="tx_d" class="inp">${db.dokter.map(d=>`<option value="${d.id}">${esch(d.nama)}</option>`).join('')}</select></label>
+  <div class="lb">Layanan Gigi (boleh lebih dari 1)<div class="flex gap-2 mt-1"><select id="tx_l" class="inp"><option value="">-- Pilih Layanan --</option>${db.layanan.map(l=>`<option value="${l.id}">${esch(l.nama)} - ${rp(l.harga)}</option>`).join('')}</select><input id="tx_q" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah"><button type="button" onclick="addCart()" class="btn-p whitespace-nowrap">+ Tambah</button></div></div><div id="tx_cart" class="space-y-1"></div>
+  <label class="lb">Tanggal Transaksi<input id="tx_t" type="date" value="${today()}" class="inp"></label>
+  <label class="lb">Shift Pendapatan<select id="tx_shift" class="inp">${SHIFT_D.slice(0,2).map(s=>`<option>${s}</option>`).join('')}</select></label>
+  <div class="lb">Metode Pembayaran<div class="grid grid-cols-3 gap-2 mt-1">${['Tunai','QRIS','Transfer Bank'].map((m,i)=>`<label class="border p-2 rounded-xl text-center cursor-pointer text-[11px]"><input type="radio" name="tx_m" value="${m}" ${i?'':'checked'}> ${m}</label>`).join('')}</div></div>
+  <label class="lb">Dibayar sekarang (kosong = lunas; isi untuk DP/cicilan)<input id="tx_dp" type="number" min="0" class="inp" placeholder="Rp"></label>
+  <div class="bg-gold-100 p-3 rounded-2xl flex justify-between font-bold text-xs"><span>Total Tagihan:</span><span id="tx_tot" class="text-base text-brand-600">Rp 0</span></div>
+  <button class="btn-p w-full py-3">Selesaikan Transaksi & Bayar</button></form>`;
+  const btn=(f,id,c,ic,t)=>`<button onclick="${f}('${id}')" class="text-${c}-700 font-bold bg-${c}-50 px-2 py-1 rounded-xl" title="${t}"><i class="fa-solid ${ic}"></i></button>`;
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${card(form)}<div class="lg:col-span-2">${card(head('Riwayat Transaksi','Transaksi tidak bisa dihapus, hanya di-void dengan alasan')
+   +tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${esch(pn(r))}</b><br><span class="text-slate-400">${esch(dn(r))}</span>`],
+    ['Tindakan',r=>esch(r.layanan)+(r.status==='Void'?`<br><span class="text-red-600">Void: ${esch(r.voidAlasan)}</span>`:'')],['Total',r=>`<b>${rp(r.total)}</b>`],['Dibayar',r=>rp(paid(r))],['Sisa',r=>r.status==='Void'?'-':rp(Math.max(0,num(r.total)-paid(r)))],
+    ['Status',r=>bdg(st(r))],['Aksi',r=>btn('invoice',r.id,'brand','fa-print','Nota')+(st(r)==='Belum Lunas'?' '+btn('bayarSisa',r.id,'emerald','fa-coins','Pelunasan'):'')+(r.status!=='Void'?' '+btn('voidTx',r.id,'red','fa-ban','Void'):'')]],rows,false))}</div></div>`};
+ INIT.transaksi=()=>{drawCart();if(PF){const f=PF;PF=null;cart=[];if(f.p)$('tx_p').value=f.p;if(f.d)$('tx_d').value=f.d;
+   if(f.l)cart.push({id:f.l.id,nama:f.l.nama,harga:num(f.l.harga),qty:1});$('tx_t').value=f.tgl;drawCart()}};
  window.prosesTx=function(e){e.preventDefault();if(!cart.length)return toast('Tambahkan minimal 1 layanan gigi!','warning');
-  const db=getDB(),items=cart.map(x=>({nama:x.nama,harga:x.harga,qty:x.qty}));
-  db.transaksi.unshift({id:'TRX-'+Date.now().toString().slice(-6),tgl:$('tx_t').value||today(),pasien:$('tx_p').value,dokter:$('tx_d').value,
-   layanan:items.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),items:JSON.stringify(items),shift:$('tx_shift').value,
-   total:items.reduce((s,x)=>s+x.harga*x.qty,0),metode:document.querySelector('input[name=tx_m]:checked').value,status:'Lunas'});
-  saveDB(db);cart=[];tx=0;toast('Transaksi sukses!','success');render()};
+  const db=getDB(),it=cart.map(x=>({nama:x.nama,harga:x.harga,qty:x.qty})),total=it.reduce((s,x)=>s+x.harga*x.qty,0),tgl=$('tx_t').value||today(),
+   p=db.pasien.find(x=>x.id===$('tx_p').value),d=db.dokter.find(x=>x.id===$('tx_d').value),raw=$('tx_dp').value.trim(),dp=raw===''?total:Math.min(total,Math.max(0,num(raw))),m=document.querySelector('input[name=tx_m]:checked').value;
+  if(!p||!d)return toast('Pasien dan dokter harus dipilih','warning');
+  db.transaksi.unshift({id:trxId(db,tgl),tgl,pasienId:p.id,pasien:p.nama,dokterId:d.id,dokter:d.nama,layanan:it.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),items:JSON.stringify(it),shift:$('tx_shift').value,
+   total,dibayar:dp,cicilan:JSON.stringify([{tgl,jumlah:dp,metode:m}]),metode:m,status:dp>=total?'Lunas':'Belum Lunas',voidAlasan:'',voidAt:''});
+  saveDB(db);cart=[];toast(dp>=total?'Transaksi sukses!':'Transaksi tersimpan (belum lunas)','success');render()};
+ window.bayarSisa=function(id){const db=getDB(),t=db.transaksi.find(x=>x.id===id),s=num(t.total)-paid(t),v=prompt('Sisa tagihan '+rp(s)+'. Jumlah pembayaran:',s);if(v===null)return;
+  const j=Math.min(s,num(v));if(j<=0)return toast('Jumlah tidak valid','warning');const m=prompt('Metode (Tunai / QRIS / Transfer Bank):','Tunai')||t.metode,a=pays(t);
+  a.push({tgl:today(),jumlah:j,metode:m});t.cicilan=JSON.stringify(a);t.dibayar=paid(t)+j;t.status=t.dibayar>=num(t.total)?'Lunas':'Belum Lunas';saveDB(db);toast('Pembayaran dicatat','success');render()};
+ window.voidTx=function(id){const db=getDB(),t=db.transaksi.find(x=>x.id===id);if(!t||t.status==='Void')return;
+  const a=prompt('Alasan membatalkan transaksi '+id+' (wajib diisi):');if(!a||!a.trim())return toast('Alasan wajib diisi','warning');
+  t.status='Void';t.voidAlasan=a.trim();t.voidAt=new Date().toISOString().slice(0,16).replace('T',' ');saveDB(db);toast('Transaksi di-void','warning');render()};
 
- // ---------- Bagian terkait: grafik, statistik, ringkasan, nota ----------
- const iDash=INIT.dashboard;
- INIT.dashboard=db=>{iDash(db);const s=agg(db.transaksi,i=>i.qty);
-  mk('c2',{type:'doughnut',data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:COL}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}})};
- const iSt=INIT.statistik;
- INIT.statistik=db=>{iSt(db);const g=agg(db.transaksi,i=>i.harga*i.qty);
-  mk('c1',{type:'bar',data:{labels:Object.keys(g),datasets:[{label:'Pendapatan (Rp)',data:Object.values(g),backgroundColor:'#6d0f26'}]},options:{responsive:true,maintainAspectRatio:false}})};
- const vR=V.laporan_ringkasan;
- V.laporan_ringkasan=db=>{const g=agg(db.transaksi,i=>i.qty),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-';
-  return vR(db).replace(/(Layanan Terlaris: <b>)[\s\S]*?(<\/b>)/,(m,a,b)=>a+top+b)};
- const vRk=V.rekap_pendapatan;
- V.rekap_pendapatan=db=>vRk(db).replace('onchange="rng.shift=this.value"','onchange="rng.shift=this.value;render()"');
-
- const _inv=window.invoice;
- window.invoice=function(id){_inv(id);const t=getDB().transaksi.find(x=>x.id===id);if(!t)return;
-  const sp=[...$('mbody').querySelectorAll('span.text-slate-500')].find(x=>x.textContent===t.layanan);if(!sp)return;
-  const row=sp.parentElement;
-  row.insertAdjacentHTML('beforebegin',lines(t).map(i=>`<div class="flex justify-between"><span class="text-slate-500">${i.nama}${i.qty>1?' × '+i.qty+' @ '+rp(i.harga):''}</span><b>${rp(i.harga*i.qty)}</b></div>`).join(''));
-  row.remove()};
-
- // ---------- Cetak PDF: sinkron dulu, lalu print (memperbaiki layar putih) ----------
- const _print=window.print.bind(window);
- let busy=false;
+ // ===== Nota (A4 / thermal 58 & 80 mm) =====
+ window.invoice=function(id){const db=getDB(),t=db.transaksi.find(x=>x.id===id),p=db.pengaturan;if(!t)return;
+  const pa=(db.pasien.find(x=>x.id===t.pasienId)||{}).nama||t.pasien,dr=(db.dokter.find(x=>x.id===t.dokterId)||{}).nama||t.dokter,sisa=Math.max(0,num(t.total)-paid(t)),
+   r=(a,b)=>`<div class="flex justify-between gap-2"><span class="text-slate-500">${a}</span><b>${b}</b></div>`;
+  showModal(`<div class="text-xs max-w-sm mx-auto"><div class="text-center pb-3 border-b border-dashed border-slate-300"><img src="${LOGO}" class="w-14 h-14 rounded-full mx-auto mb-1"><h3 class="font-extrabold text-sm uppercase">${esch(p.namaKlinik)}</h3><p class="text-[10px] text-slate-500">${esch(p.alamat)}<br>Telp: ${esch(p.telepon)}</p></div>
+  ${t.status==='Void'?`<p class="text-center font-extrabold text-red-600 border border-red-600 rounded p-1 my-2">VOID: ${esch(t.voidAlasan)}</p>`:''}
+  <div class="py-3 space-y-1 border-b border-dashed border-slate-300">${r('No Invoice',t.id)}${r('Tanggal',t.tgl)}${r('Shift',esch(t.shift||'-'))}${r('Pasien',esch(pa))}${r('Dokter',esch(dr))}</div>
+  <div class="py-3 space-y-1 border-b border-dashed border-slate-300">${lines(t).map(i=>r(esch(i.nama)+(i.qty>1?' × '+i.qty+' @ '+rp(i.harga):''),rp(i.harga*i.qty))).join('')}</div>
+  <div class="py-3 space-y-1"><div class="flex justify-between text-sm font-extrabold"><span>TOTAL</span><span class="text-brand-600">${rp(t.total)}</span></div>${pays(t).map(x=>r('Bayar '+x.tgl+' ('+esch(x.metode)+')',rp(x.jumlah))).join('')||r('Metode',esch(t.metode))}${r('Sisa tagihan',rp(sisa))}</div>
+  <p class="text-center text-[10px] text-slate-400">Terima kasih atas kunjungan Anda di ${esch(p.namaKlinik)}!</p>
+  <div class="flex flex-wrap gap-2 pt-4"><button onclick="closeModal()" class="btn-g flex-1">Tutup</button><button onclick="printNota()" class="btn-p flex-1">A4</button><button onclick="printNota(80)" class="btn-p flex-1">80 mm</button><button onclick="printNota(58)" class="btn-p flex-1">58 mm</button></div></div>`)};
+ window.printNota=function(th){const s=document.createElement('style');s.id='pgsz';s.textContent=th?`@page{size:${th}mm auto;margin:2mm}`:'@page{size:A4;margin:12mm}';document.head.appendChild(s);if(th)document.body.classList.add('th');window.print()};
+ const _print=window.print.bind(window);let busy=false;
  window.print=async function(){if(busy)return;busy=true;toast('Menyinkronkan data sebelum cetak...');
   try{if(sheetUrl){if(syncTimer){clearTimeout(syncTimer);syncTimer=null;await syncPush()}await syncPull()}}catch(e){}
-  if(!$('modal').classList.contains('hidden'))document.body.classList.add('inv');
-  setTimeout(()=>{busy=false;_print()},250)};
- window.addEventListener('afterprint',()=>document.body.classList.remove('inv'));
+  if(!$('modal').classList.contains('hidden'))document.body.classList.add('inv');setTimeout(()=>{busy=false;_print()},250)};
+ window.addEventListener('afterprint',()=>{document.body.classList.remove('inv','th');const s=$('pgsz');if(s)s.remove()});
+
+ // ===== Stok obat =====
+ const stok=db=>{const m={};db.pembelianObat.forEach(x=>{const o=m[x.obat]=m[x.obat]||{obat:x.obat,satuan:x.satuan,masuk:0,pakai:0,min:0,t:''};o.masuk+=num(x.jumlah);if(num(x.minStok)>0&&x.tanggal>=o.t){o.min=num(x.minStok);o.t=x.tanggal}});
+  db.pemakaianObat.forEach(x=>{if(m[x.obat])m[x.obat].pakai+=num(x.jumlah)});return Object.values(m).map(o=>({...o,sisa:o.masuk-o.pakai}))};
+ V.obat_stok=db=>card(head('📦 Stok Obat & Bahan','Stok = total pembelian dikurangi pemakaian. Batas minimum diisi di form Pembelian Obat',addBtn('pemakaianObat','Catat Pemakaian'))
+  +tbl('pembelianObat',[['Obat',r=>`<b>${esch(r.obat)}</b>`],['Masuk',r=>r.masuk+' '+esch(r.satuan)],['Dipakai',r=>r.pakai],['Sisa',r=>`<b>${r.sisa}</b>`],['Minimum',r=>r.min||'-'],['Status',r=>bdg(r.min>0&&r.sisa<=r.min?'Menipis':'Aman')]],stok(db).filter(o=>!Q||o.obat.toLowerCase().includes(Q)),false)
+  +`<h4 class="font-extrabold text-sm text-brand-700 mt-5 mb-2">Riwayat Pemakaian</h4>`+tbl('pemakaianObat',[['Tanggal',r=>r.tanggal],['Obat',r=>`<b>${esch(r.obat)}</b>`],['Jumlah',r=>r.jumlah],['Catatan',r=>esch(r.catatan)||'-']],F(db.pemakaianObat).slice().sort((a,b)=>a.tanggal<b.tanggal?1:-1)));
+
+ // ===== Notifikasi otomatis (stok, reservasi, belum lunas, kontrol ulang) =====
+ const kb=(db,n)=>{const l=db.layanan.find(x=>x.nama===n),b=l?num(l.kontrolBulan):0;return b>0?b:/scal+ing|pembersihan karang/i.test(n)?6:0};
+ const addM=(d,b)=>{const x=new Date(d+'T00:00');x.setMonth(x.getMonth()+b);return lokal(x)};
+ function notifs(db){const L=[],td=today(),t14=lokal(new Date(Date.now()+14*864e5));
+  stok(db).filter(o=>o.min>0&&o.sisa<=o.min).forEach(o=>L.push(['Stok Menipis',`${o.obat}: sisa ${o.sisa} ${o.satuan} (minimum ${o.min})`,'#dc2626']));
+  db.reservasi.filter(r=>r.tanggal===td&&r.status!=='Batal'&&r.status!=='Selesai').forEach(r=>L.push(['Reservasi Hari Ini',`${r.jam} ${r.nama}: ${r.layanan} (${r.dokter})`,'#2563eb']));
+  db.transaksi.filter(t=>t.status!=='Void'&&num(t.total)-paid(t)>0).forEach(t=>L.push(['Pembayaran Belum Lunas',`${t.id} ${t.pasien}: sisa ${rp(num(t.total)-paid(t))}`,'#d97706']));
+  const last={};db.transaksi.filter(t=>t.status!=='Void').forEach(t=>lines(t).forEach(i=>{const b=kb(db,i.nama);if(!b)return;const k=(t.pasienId||t.pasien)+'|'+i.nama;if(!last[k]||t.tgl>last[k].tgl)last[k]={tgl:t.tgl,b,p:t.pasien,l:i.nama}}));
+  Object.values(last).forEach(x=>{const d=addM(x.tgl,x.b);if(d<=t14)L.push(['Kontrol Ulang',`${x.p}: ${x.l}, jatuh tempo ${d}${d<td?' (terlambat)':''}`,'#d97706'])});
+  db.rekamMedis.filter(r=>r.kontrolUlang&&r.kontrolUlang>=td&&r.kontrolUlang<=t14).forEach(r=>L.push(['Kontrol Ulang',`${r.pasien}: ${r.kontrolUlang}`,'#d97706']));
+  return L}
+ V.notifikasi=db=>card(head('🔔 Pusat Notifikasi Klinik','Dibuat otomatis dari stok, reservasi, pembayaran, dan jadwal kontrol ulang')
+  +`<div class="space-y-2">${notifs(db).map(n=>`<div class="p-4 rounded-2xl bg-gold-100/60" style="border-left:4px solid ${n[2]}"><h4 class="font-extrabold text-xs">${n[0]}</h4><p class="text-xs text-slate-600 mt-0.5">${esch(n[1])}</p></div>`).join('')||'<p class="text-slate-400 text-xs">Tidak ada notifikasi</p>'}</div>`);
+
+ // ===== Rekam medis + odontogram =====
+ window.rmP='';
+ V.rekam_medis=db=>{const a=F(db.rekamMedis).filter(x=>inr(x.tanggal)&&(!rmP||x.pasienId===rmP)).sort((p,q)=>p.tanggal<q.tanggal?1:-1),hit={};
+  a.forEach(r=>String(r.gigi).split(/[,\s]+/).filter(Boolean).forEach(g=>(hit[g]=hit[g]||[]).push(r.tanggal+': '+r.diagnosis)));
+  const T=n=>`<span class="w-7 h-8 shrink-0 rounded-lg text-[10px] font-bold flex items-center justify-center border ${hit[n]?'bg-brand-600 text-white border-brand-600':'bg-white text-slate-500 border-slate-200'}" title="${esch((hit[n]||[]).join(' | '))}">${n}</span>`,
+   row=r=>`<div class="flex gap-1 justify-center">${r.map(T).join('')}</div>`;
+  return bar()+card(head('🦷 Rekam Medis & Odontogram','Riwayat per kunjungan: gigi dirawat, diagnosis, tindakan, resep',addBtn('rekamMedis','Tambah Rekam Medis'))
+   +`<label class="lb mb-3 max-w-xs">Pasien<select class="inp" onchange="rmP=this.value;render()"><option value="">Semua pasien</option>${db.pasien.map(p=>`<option value="${p.id}" ${p.id===rmP?'selected':''}>${esch(p.nama)} (${p.id})</option>`).join('')}</select></label>
+   <div class="space-y-1 mb-4 overflow-x-auto">${row([18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28])}${row([48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38])}<p class="text-center text-[10px] text-slate-400">Gigi berwarna = pernah dirawat (arahkan kursor untuk detail). Penomoran FDI.</p></div>`
+   +tbl('rekamMedis',[['Tanggal',r=>r.tanggal],['Pasien',r=>`<b>${esch(r.pasien)}</b>`],['Dokter',r=>esch(r.dokter)],['Gigi',r=>esch(r.gigi)],['Diagnosis',r=>esch(r.diagnosis)],['Tindakan',r=>esch(r.tindakan)],['Resep',r=>esch(r.resep)||'-'],['Kontrol',r=>r.kontrolUlang||'-']],a))};
+
+ // ===== Filter tanggal =====
+ window.fl={a:'',b:''};
+ const inr=d=>(!fl.a||d>=fl.a)&&(!fl.b||d<=fl.b);
+ const bar=()=>`<div class="bg-white rounded-3xl card-shadow p-3 flex flex-wrap items-end gap-3 text-xs no-print"><label class="lb">Dari tanggal<input type="date" class="inp" value="${fl.a}" onchange="fl.a=this.value;render()"></label><label class="lb">Sampai tanggal<input type="date" class="inp" value="${fl.b}" onchange="fl.b=this.value;render()"></label><button class="btn-g" onclick="fl={a:'',b:''};render()">Reset</button></div>`;
+ [['pasien','pasien','tglKunjungan'],['dokter_absensi','absensiDokter','tanggal'],['perawat_absensi','absensiPerawat','tanggal']].forEach(([v,k,f])=>{const o=V[v];V[v]=db=>bar()+o({...db,[k]:db[k].filter(x=>inr(x[f]))})});
+ const _go=window.go;window.go=function(v){window.fl={a:'',b:''};_go(v)};
+
+ // ===== Reservasi: WhatsApp, bayar, validasi jadwal + durasi =====
+ const HN=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],mn=s=>{const [a,b]=String(s).split(':');return num(a)*60+num(b)},fm=m=>String(m/60|0).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+ CFG.reservasi.chk=(o,id,db)=>{if(o.status==='Batal')return'';const w=[],dur=n=>num((db.layanan.find(l=>l.nama===n)||{}).durasi)||30,s=mn(o.jam),e=s+dur(o.layanan),hari=HN[new Date(o.tanggal+'T00:00').getDay()];
+  if(!db.jadwalDokter.filter(x=>x.dokter===o.dokter&&x.hari===hari).some(x=>!x.jamMulai||(s>=mn(x.jamMulai)&&e<=mn(x.jamSelesai))))w.push(`${o.dokter} tidak terjadwal praktik pada ${hari} ${o.jam}-${fm(e)}.`);
+  db.reservasi.filter(x=>x.id!==id&&x.status!=='Batal'&&x.tanggal===o.tanggal&&x.dokter===o.dokter).forEach(x=>{const a=mn(x.jam),b=a+dur(x.layanan);if(s<b&&a<e)w.push(`Bentrok dengan ${x.nama} (${x.jam}-${fm(b)}).`)});
+  return w.length?w.join('\n')+'\n\nTetap simpan?':''};
+ window.waRes=function(id){const db=getDB(),r=db.reservasi.find(x=>x.id===id);let p=String(r.phone||'').replace(/\D/g,'');if(!p)return toast('Nomor HP kosong','warning');if(p[0]==='0')p='62'+p.slice(1);
+  const m=`Halo ${r.nama}, kami dari ${db.pengaturan.namaKlinik}. Mengingatkan jadwal Anda pada ${r.tanggal} pukul ${r.jam} dengan ${r.dokter} untuk ${r.layanan}. Mohon konfirmasi kehadiran. Terima kasih 🙏`;
+  window.open('https://wa.me/'+p+'?text='+encodeURIComponent(m),'_blank')};
+ window.bayarRes=function(id){const db=getDB(),r=db.reservasi.find(x=>x.id===id);
+  let p=db.pasien.find(x=>r.phone&&x.phone===r.phone)||db.pasien.find(x=>x.nama===r.nama);
+  if(!p){p={id:nid('pasien'),nama:r.nama,umur:0,gender:'Laki-laki',phone:r.phone,riwayat:r.layanan,tglKunjungan:r.tanggal};db.pasien.unshift(p);saveDB(db);toast('Pasien baru dibuat dari data reservasi')}
+  const d=db.dokter.find(x=>x.nama===r.dokter);PF={p:p.id,d:d&&d.id,l:db.layanan.find(x=>x.nama===r.layanan),tgl:r.tanggal};go('transaksi')};
+ function decorRes(){if(cur!=='reservasi')return;const db=getDB();
+  document.querySelectorAll('#content select[onchange^="setRes("]').forEach(s=>{const id=s.getAttribute('onchange').match(/'([^']+)'/)[1],r=db.reservasi.find(x=>x.id===id);if(!r)return;
+   s.closest('tr').lastElementChild.insertAdjacentHTML('afterbegin',`<button onclick="waRes('${id}')" class="ic text-emerald-600" title="Pengingat WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>`+(r.status==='Selesai'?`<button onclick="bayarRes('${id}')" class="ic text-brand-600" title="Proses pembayaran"><i class="fa-solid fa-cash-register"></i></button>`:''))})}
+
+ // ===== Export, backup, pencarian global =====
+ { const o=V.export;V.export=db=>o(db).replace('</select>','<option value="rekamMedis">Rekam Medis</option><option value="pemakaianObat">Pemakaian Obat</option></select>')
+  +`<div class="max-w-xl mx-auto mt-4">${card(head('💾 Backup Database (JSON)','Cadangan seluruh data klinik')+`<div class="flex gap-2"><button onclick="bkExport()" class="btn-p flex-1">Unduh Backup</button><label class="btn-g flex-1 text-center cursor-pointer">Pulihkan dari File<input type="file" accept=".json" class="hidden" onchange="bkImport(this)"></label></div>`)}</div>` }
+ window.bkExport=function(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(getDB(),null,1)],{type:'application/json'}));a.download='Backup_SimplySmiles_'+today()+'.json';a.click();toast('Backup diunduh','success')};
+ window.bkImport=function(inp){const f=inp.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const db=JSON.parse(rd.result);if(!Array.isArray(db.pasien)||!Array.isArray(db.transaksi))throw 0;
+   if(!confirm('Timpa SEMUA data saat ini dengan isi backup ini?'))return;mig(db);saveDB(db);toast('Data dipulihkan','success');render()}catch(e){toast('File backup tidak valid','warning')}};rd.readAsText(f)};
+ const GS={pasien:['pasien','Pasien'],reservasi:['reservasi','Reservasi'],transaksi:['transaksi','Transaksi'],dokter:['dokter_data','Dokter'],layanan:['layanan','Layanan'],perawat:['perawat_data','Perawat'],pembelianObat:['obat_beli','Pembelian Obat'],rekamMedis:['rekam_medis','Rekam Medis'],jadwalDokter:['dokter_jadwal','Jadwal Dokter'],jadwalPerawat:['perawat_jadwal','Jadwal Perawat']};
+ let gq='';
+ window.gsGo=function(v){closeModal();go(v);$('gs').value=gq;Q=gq.toLowerCase();render()};
+ $('gs').addEventListener('keydown',e=>{if(e.key!=='Enter')return;gq=e.target.value.trim();const q=gq.toLowerCase();if(!q)return;const db=getDB();let h='';
+  for(const c in GS){const m=(db[c]||[]).filter(o=>JSON.stringify(Object.values(o)).toLowerCase().includes(q));if(m.length)h+=`<button class="w-full text-left p-3 rounded-xl hover:bg-gold-100/60 flex justify-between text-xs" onclick="gsGo('${GS[c][0]}')"><span>${GS[c][1]}</span><b>${m.length} hasil</b></button>`}
+  showModal(`<h3 class="font-bold text-base text-brand-700 mb-3">Hasil pencarian "${esch(gq)}"</h3>${h||'<p class="text-xs text-slate-400">Tidak ditemukan</p>'}<div class="text-right pt-3"><button onclick="closeModal()" class="btn-g">Tutup</button></div>`)});
+
+ // ===== Render: pencarian aktif di semua halaman, titik notifikasi, tombol reservasi =====
+ const _render=window.render;
+ window.render=function(){_render();const db=getDB(),g=$('gs'),n=notifs(db).length,dot=document.querySelector('#mainApp header .bg-red-500');
+  if(dot)dot.style.display=n?'':'none';g.disabled=false;g.placeholder=(PH[cur]?'Cari '+PH[cur]:'Cari')+'... (Enter = semua modul)';decorRes()};
 })();
 </script>
 
 <script>
 (function(){
- // >>> UBAH DI SINI JIKA PERLU <<<
  var USERNAME='admin_simply';
  var PASSWORD='Semarang123';
-
- var MAX=5, LOCK_MS=5*60*1000;   // salah 5x = terkunci 5 menit
- var KEY='loginGuard';
-
+ var MAX=5,LOCK_MS=5*60*1000,KEY='loginGuard';
  function getG(){try{return JSON.parse(localStorage.getItem(KEY))||{n:0,until:0}}catch(e){return{n:0,until:0}}}
  function setG(o){try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
  function msg(t){if(typeof toast==='function')toast(t,'warning');else alert(t)}
-
- // Pemeriksa dipasang di fase "capture": berjalan SEBELUM fungsi login() bawaan,
- // sehingga login salah pasti diblokir walau posisi kode ini berbeda.
  document.addEventListener('submit',function(e){
   var f=e.target,u=f.querySelector&&f.querySelector('#loginUsername'),p=f.querySelector&&f.querySelector('#loginPassword');
-  if(!u||!p)return;                              // bukan form login
+  if(!u||!p)return;
   var g=getG(),now=Date.now();
-
-  if(g.until>now){
-   e.preventDefault();e.stopImmediatePropagation();
-   msg('Terlalu banyak percobaan. Coba lagi '+Math.ceil((g.until-now)/60000)+' menit lagi.');
-   return;
-  }
-  if(u.value.trim()===USERNAME&&p.value===PASSWORD){
-   setG({n:0,until:0});
-   setTimeout(function(){p.value=''},300);       // lanjut ke login() bawaan
-   return;
-  }
+  if(g.until>now){e.preventDefault();e.stopImmediatePropagation();msg('Terlalu banyak percobaan. Coba lagi '+Math.ceil((g.until-now)/60000)+' menit lagi.');return}
+  if(u.value.trim()===USERNAME&&p.value===PASSWORD){setG({n:0,until:0});setTimeout(function(){p.value=''},300);return}
   e.preventDefault();e.stopImmediatePropagation();
   g.n=(g.n||0)+1;
   if(g.n>=MAX){g.until=now+LOCK_MS;g.n=0;msg('Akun dikunci 5 menit karena 5x salah.')}
   else msg('Username atau kata sandi salah! (sisa percobaan: '+(MAX-g.n)+')');
   setG(g);p.value='';p.focus();
  },true);
-
- // Kosongkan kolom login saat keluar
  document.addEventListener('click',function(e){
-  var b=e.target.closest&&e.target.closest('[onclick*="logout"]');
-  if(!b)return;
-  setTimeout(function(){
-   var u=document.getElementById('loginUsername'),p=document.getElementById('loginPassword');
-   if(u)u.value='';if(p)p.value='';
-  },100);
+  var b=e.target.closest&&e.target.closest('[onclick*="logout"]');if(!b)return;
+  setTimeout(function(){var u=document.getElementById('loginUsername'),p=document.getElementById('loginPassword');if(u)u.value='';if(p)p.value=''},100);
  },true);
-
- console.log('Login guard aktif');
 })();
+</script>
+</body>
+</html>
 </script>
 </script>
 </script>
