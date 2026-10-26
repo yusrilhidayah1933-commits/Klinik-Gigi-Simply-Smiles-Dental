@@ -784,9 +784,36 @@ getDB();
   return w.length?w.join('\n')+'\n\nTetap simpan?':''};
 })();
 </script>
+  <script>
+// ===== Perbaikan input nomor gigi (Rekam Medis) =====
+(function(){
+ const nums=s=>{s=String(s??'');const out=[];
+  s=s.replace(/(\d{2})\s*[-–—~]\s*(\d{2})/g,(m,a,b)=>{a=+a;b=+b;
+   if(a<=b&&Math.floor(a/10)===Math.floor(b/10)){for(let i=a;i<=b;i++)out.push(i)}else out.push(a,b);return ' '});
+  (s.match(/\d{2}/g)||[]).forEach(x=>out.push(+x));
+  return [...new Set(out)].sort((a,b)=>a-b)};
+ const ok=n=>{const q=n/10|0,u=n%10;return q>=1&&q<=4&&u>=1&&u<=8};
+ const norm=s=>{const a=nums(s);return a.length?a.join(', '):String(s??'')};
+
+ // rapikan saat simpan
+ const _pre=CFG.rekamMedis.pre;
+ CFG.rekamMedis.pre=(o,n)=>{_pre(o,n);o.gigi=norm(o.gigi)};
+
+ // rapikan saat ditampilkan (data lama ikut terbaca)
+ const v=V.rekam_medis;
+ V.rekam_medis=db=>v({...db,rekamMedis:db.rekamMedis.map(r=>({...r,gigi:norm(r.gigi)}))});
+
+ // pratinjau di form
+ const _of=window.openForm;
+ window.openForm=function(c,id,pre){_of(c,id,pre);if(c!=='rekamMedis')return;
+  const i=document.querySelector('#mbody input[name=gigi]');if(!i)return;
+  const p=document.createElement('p');p.className='text-[11px] mt-1 font-normal text-slate-500';i.after(p);
+  const upd=()=>{const all=nums(i.value),g=all.filter(ok),x=all.filter(n=>!ok(n));
+   p.innerHTML=!i.value.trim()?'Contoh: 33, 34, 35 atau 33-35'
+    :g.length?'Terbaca: <b class="text-brand-600">'+g.join(', ')+'</b> ('+g.length+' gigi)'+(x.length?' <span class="text-amber-600">· diabaikan di bagan: '+x.join(', ')+'</span>':'')
+    :'<span class="text-red-600">Tidak ada nomor gigi valid (11-18, 21-28, 31-38, 41-48)</span>'};
+  i.addEventListener('input',upd);upd()};
+})();
+</script>
 </body>
-</html>
-</script>
-</script>
-</script>
 </html>
