@@ -815,5 +815,79 @@ getDB();
   i.addEventListener('input',upd);upd()};
 })();
 </script>
+  <!-- ===== PATCH REVISI 3: tempel SEBELUM </body> terakhir, setelah semua <script> yang ada ===== -->
+<script>
+(function(){
+ const LS=localStorage,num=v=>parseInt(String(v).replace(/\D/g,''))||0,cl=x=>JSON.parse(JSON.stringify(x));
+ const FULL='Full Shift (10:00 - 20:00)',isFull=x=>String(x.shift||'').startsWith('Full Shift');
+ JAM['Full Shift']=['10:00','20:00'];
+
+ // ===== A. mig() tidak lagi mengubah Full Shift jadi Shift 1 =====
+ const _mig=window.mig;
+ window.mig=function(db){const keep=[];
+  ['dokter','perawat','jadwalPerawat'].forEach(k=>(db[k]||[]).forEach(r=>{if(isFull(r))keep.push([r,r.shift])}));
+  const ch=_mig(db);keep.forEach(([r,s])=>{r.shift=s});return ch};
+
+ // Data Dokter juga boleh Full Shift
+ {const f=CFG.dokter.f.find(x=>x[0]==='shift');if(f)f[3]=[SHIFT_B[0],SHIFT_B[1],FULL,SHIFT_B[2],SHIFT_B[3]]}
+
+ // ===== B. "Muat Jadwal Asli" mempertahankan Full Shift, Tukar Shift, Tidak Berangkat =====
+ window.importJadwal=function(){
+  if(!confirm('Muat jadwal asli Oktober 2026?\nJadwal Full Shift, Tukar Shift, dan Tidak Berangkat yang sudah diinput TETAP dipertahankan.'))return;
+  const db=getDB();
+  ['dokter','perawat'].forEach(k=>initialData[k].forEach(x=>{if(db[k].some(y=>y.nama===x.nama))return;const c=cl(x);c.id=CFG[k].p+String(Math.max(0,...db[k].map(y=>num(y.id)))+1).padStart(3,'0');db[k].push(c)}));
+  db.jadwalDokter=cl(initialData.jadwalDokter);
+  const keep=db.jadwalPerawat.filter(x=>isFull(x)||x.info!=='Jadwal Normal');
+  const cover=(s,k)=>isFull(k)||String(k.shift).startsWith(String(s.shift).slice(0,7));
+  let n=Math.max(0,...keep.map(x=>num(x.id)));
+  const seed=cl(initialData.jadwalPerawat).filter(s=>!keep.some(k=>k.tanggal===s.tanggal&&k.peran===s.peran&&cover(s,k)));
+  seed.forEach(s=>s.id='JPR-'+String(++n).padStart(3,'0'));
+  db.jadwalPerawat=[...keep,...seed];
+  saveDB(db);toast('Jadwal asli dimuat (Full Shift dipertahankan)','success');render()};
+
+ // ===== C. Filter Shift di Rekap Pendapatan langsung bekerja =====
+ {const o=V.rekap_pendapatan;V.rekap_pendapatan=db=>o(db).replace('onchange="rng.shift=this.value"','onchange="rng.shift=this.value;render()"')}
+
+ // ===== D. Token Apps Script (disimpan di browser, bukan di source code) =====
+ let asked=false;
+ const tokenGet=()=>{let t=LS.getItem('syncToken');
+  if(!t&&!asked){asked=true;t=prompt('Masukkan token sinkronisasi (sama dengan TOKEN di Apps Script):')||'';if(t)LS.setItem('syncToken',t.trim())}
+  return (t||'').trim()};
+ window.sheetCall=async function(opts){opts=opts||{};const tk=tokenGet();let url=sheetUrl;
+  if(opts.method==='POST'){const b=JSON.parse(opts.body);b.token=tk;opts={...opts,body:JSON.stringify(b)}}
+  else url+=(url.includes('?')?'&':'?')+'token='+encodeURIComponent(tk);
+  const r=await fetch(url,opts),t=await r.text();let j;
+  try{j=JSON.parse(t)}catch(e){throw new Error('Google membalas bukan data (status '+r.status+'). Cek deployment Apps Script.')}
+  if(!j.ok){if(/token/i.test(j.error||'')){LS.removeItem('syncToken');asked=false}throw new Error(j.error||'Respon tidak valid')}
+  return j};
+
+ // ===== E. Generator jadwal perawat bulanan (salin pola 4 minggu sebelumnya) =====
+ window.genBulan=function(){const db=getDB(),y=pm.getFullYear(),m=pm.getMonth(),n=new Date(y,m+1,0).getDate();
+  if(!confirm('Isi tanggal yang masih kosong di '+pm.toLocaleDateString('id-ID',{month:'long',year:'numeric'})+' dengan pola 4 minggu sebelumnya?\nTanggal yang sudah ada jadwalnya tidak diubah. Hanya jadwal normal yang disalin.'))return;
+  let id=Math.max(0,...db.jadwalPerawat.map(x=>num(x.id))),add=0;
+  for(let d=1;d<=n;d++){const s=lokal(new Date(y,m,d));if(db.jadwalPerawat.some(x=>x.tanggal===s))continue;
+   const src=lokal(new Date(y,m,d-28));
+   db.jadwalPerawat.filter(x=>x.tanggal===src&&x.info==='Jadwal Normal').forEach(r=>{db.jadwalPerawat.push({...r,id:'JPR-'+String(++id).padStart(3,'0'),tanggal:s,info:'Jadwal Normal',tukarDengan:'-',keterangan:''});add++})}
+  saveDB(db);toast(add?add+' jadwal ditambahkan. Cek dan sesuaikan seperlunya.':'Tidak ada yang ditambahkan (tanggal sudah terisi atau pola sumber kosong)',add?'success':'warning');render()};
+ {const o=V.perawat_jadwal;V.perawat_jadwal=db=>o(db).replace('Muat Jadwal Asli</button>','Muat Jadwal Asli</button><button onclick="genBulan()" class="btn-g">Isi Bulan Ini Otomatis</button>')}
+
+ // ===== F. Validasi absensi terhadap jadwal (ganda, tidak terjadwal, terlambat) =====
+ const HN=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],mn=s=>{const [a,b]=String(s).replace(' WIB','').split(':');return num(a)*60+num(b)},fm=v=>String(v/60|0).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
+ const starts=(db,kind,nama,tgl)=>{let a;
+  if(kind==='perawat')a=db.jadwalPerawat.filter(x=>x.perawat===nama&&x.tanggal===tgl&&x.info!=='Tidak Berangkat').map(x=>isFull(x)?'10:00':(JAM[String(x.shift).split(' (')[0]]||[''])[0]);
+  else{const h=HN[new Date(tgl+'T00:00').getDay()];a=db.jadwalDokter.filter(x=>x.dokter===nama&&x.hari===h).map(x=>x.jamMulai)}
+  return {ada:a.length>0,min:a.filter(Boolean).map(mn).sort((p,q)=>p-q)[0]}};
+ const mkChk=kind=>(o,id,db)=>{if(o.status!=='Hadir')return'';const k=kind==='perawat'?'perawat':'dokter',L=kind==='perawat'?db.absensiPerawat:db.absensiDokter,w=[];
+  if(L.some(x=>x.id!==id&&x[k]===o[k]&&x.tanggal===o.tanggal))w.push(o[k]+' sudah punya absensi pada '+o.tanggal+'.');
+  const s=starts(db,kind,o[k],o.tanggal);
+  if(!s.ada)w.push(o[k]+' tidak terjadwal pada '+o.tanggal+'.');
+  else if(s.min!==undefined&&o.jamMasuk&&o.jamMasuk!=='-'){const late=mn(o.jamMasuk)-s.min;if(late>15)w.push(o[k]+' terlambat '+late+' menit (jadwal mulai '+fm(s.min)+').')}
+  return w.length?w.join('\n')+'\n\nTetap simpan?':''};
+ CFG.absensiPerawat.chk=mkChk('perawat');CFG.absensiDokter.chk=mkChk('dokter');
+
+ // ===== G. Shift kasir otomatis mengikuti jam saat ini =====
+ {const o=INIT.transaksi;INIT.transaksi=()=>{o();const s=$('tx_shift');if(s)s.selectedIndex=hhmm()<'15:00'?0:1}}
+})();
+</script>
 </body>
 </html>
