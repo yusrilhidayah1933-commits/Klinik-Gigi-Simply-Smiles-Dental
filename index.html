@@ -815,44 +815,78 @@ getDB();
   i.addEventListener('input',upd);upd()};
 })();
 </script>
-  <!-- ===== PATCH REVISI 3: tempel SEBELUM </body> terakhir, setelah semua <script> yang ada ===== -->
+  <!-- ===== REVISI FINAL (gabungan Revisi 3 + 4 + 5): tempel SEBELUM </body> terakhir, menggantikan ketiga blok revisi tersebut ===== -->
 <script>
 (function(){
- const LS=localStorage,num=v=>parseInt(String(v).replace(/\D/g,''))||0,cl=x=>JSON.parse(JSON.stringify(x));
+ /* ============ 1. HELPER ============ */
+ const LS=localStorage,cl=x=>JSON.parse(JSON.stringify(x));
+ const num=v=>parseInt(String(v).replace(/\D/g,''))||0;      // angka dari teks (id, jam)
+ const nm=v=>Number(v)||0;                                    // angka biasa (harga, jumlah)
+ const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const paid=t=>(t.dibayar===undefined||t.dibayar==='')?(t.status==='Lunas'?nm(t.total):0):nm(t.dibayar);
  const FULL='Full Shift (10:00 - 20:00)',isFull=x=>String(x.shift||'').startsWith('Full Shift');
  JAM['Full Shift']=['10:00','20:00'];
 
- // ===== A. mig() tidak lagi mengubah Full Shift jadi Shift 1 =====
+ /* ============ 2. LABEL FORM (singkat, tanpa keterangan) ============ */
+ const lbl=(c,k,t)=>{const f=CFG[c].f.find(x=>x[0]===k);if(f)f[1]=t};
+ lbl('jadwalDokter','jamMulai','Jam Mulai');lbl('jadwalDokter','jamSelesai','Jam Selesai');
+ lbl('jadwalPerawat','tukarDengan','Tukar Shift Dengan');
+ lbl('rekamMedis','gigi','Nomor Gigi');lbl('rekamMedis','kontrolUlang','Kontrol Ulang');
+ lbl('pembelianObat','minStok','Batas Minimum Stok');
+ lbl('layanan','kontrolBulan','Kontrol Ulang (bulan)');
+ {const f=CFG.dokter.f.find(x=>x[0]==='shift');if(f)f[3]=[SHIFT_B[0],SHIFT_B[1],FULL,SHIFT_B[2],SHIFT_B[3]]}
+
+ /* ============ 3. FULL SHIFT TIDAK DIUBAH OLEH MIGRASI ============ */
  const _mig=window.mig;
  window.mig=function(db){const keep=[];
   ['dokter','perawat','jadwalPerawat'].forEach(k=>(db[k]||[]).forEach(r=>{if(isFull(r))keep.push([r,r.shift])}));
   const ch=_mig(db);keep.forEach(([r,s])=>{r.shift=s});return ch};
 
- // Data Dokter juga boleh Full Shift
- {const f=CFG.dokter.f.find(x=>x[0]==='shift');if(f)f[3]=[SHIFT_B[0],SHIFT_B[1],FULL,SHIFT_B[2],SHIFT_B[3]]}
-
- // ===== B. "Muat Jadwal Asli" mempertahankan Full Shift, Tukar Shift, Tidak Berangkat =====
+ /* ============ 4. JADWAL ============ */
+ // Muat jadwal asli, pertahankan Full Shift / Tukar Shift / Tidak Berangkat
  window.importJadwal=function(){
-  if(!confirm('Muat jadwal asli Oktober 2026?\nJadwal Full Shift, Tukar Shift, dan Tidak Berangkat yang sudah diinput TETAP dipertahankan.'))return;
+  if(!confirm('Muat jadwal asli Oktober 2026?\nJadwal Full Shift, Tukar Shift, dan Tidak Berangkat yang sudah diinput tetap dipertahankan.'))return;
   const db=getDB();
   ['dokter','perawat'].forEach(k=>initialData[k].forEach(x=>{if(db[k].some(y=>y.nama===x.nama))return;const c=cl(x);c.id=CFG[k].p+String(Math.max(0,...db[k].map(y=>num(y.id)))+1).padStart(3,'0');db[k].push(c)}));
   db.jadwalDokter=cl(initialData.jadwalDokter);
-  const keep=db.jadwalPerawat.filter(x=>isFull(x)||x.info!=='Jadwal Normal');
-  const cover=(s,k)=>isFull(k)||String(k.shift).startsWith(String(s.shift).slice(0,7));
+  const keep=db.jadwalPerawat.filter(x=>isFull(x)||x.info!=='Jadwal Normal'),
+   cover=(s,k)=>isFull(k)||String(k.shift).startsWith(String(s.shift).slice(0,7));
   let n=Math.max(0,...keep.map(x=>num(x.id)));
   const seed=cl(initialData.jadwalPerawat).filter(s=>!keep.some(k=>k.tanggal===s.tanggal&&k.peran===s.peran&&cover(s,k)));
   seed.forEach(s=>s.id='JPR-'+String(++n).padStart(3,'0'));
-  db.jadwalPerawat=[...keep,...seed];
-  saveDB(db);toast('Jadwal asli dimuat (Full Shift dipertahankan)','success');render()};
+  db.jadwalPerawat=[...keep,...seed];saveDB(db);toast('Jadwal asli dimuat','success');render()};
 
- // ===== C. Filter Shift di Rekap Pendapatan langsung bekerja =====
- {const o=V.rekap_pendapatan;V.rekap_pendapatan=db=>o(db).replace('onchange="rng.shift=this.value"','onchange="rng.shift=this.value;render()"')}
+ // Isi bulan aktif otomatis dari pola 4 minggu sebelumnya
+ window.genBulan=function(){const db=getDB(),y=pm.getFullYear(),m=pm.getMonth(),n=new Date(y,m+1,0).getDate();
+  if(!confirm('Isi tanggal yang masih kosong di '+pm.toLocaleDateString('id-ID',{month:'long',year:'numeric'})+' dengan pola 4 minggu sebelumnya?'))return;
+  let id=Math.max(0,...db.jadwalPerawat.map(x=>num(x.id))),add=0;
+  for(let d=1;d<=n;d++){const s=lokal(new Date(y,m,d));if(db.jadwalPerawat.some(x=>x.tanggal===s))continue;
+   db.jadwalPerawat.filter(x=>x.tanggal===lokal(new Date(y,m,d-28))&&x.info==='Jadwal Normal').forEach(r=>{db.jadwalPerawat.push({...r,id:'JPR-'+String(++id).padStart(3,'0'),tanggal:s,tukarDengan:'-',keterangan:''});add++})}
+  saveDB(db);toast(add?add+' jadwal ditambahkan':'Tidak ada yang ditambahkan',add?'success':'warning');render()};
+ {const o=V.perawat_jadwal;V.perawat_jadwal=db=>o(db).replace('Muat Jadwal Asli</button>','Muat Jadwal Asli</button><button onclick="genBulan()" class="btn-g">Isi Bulan Ini Otomatis</button>')}
 
- // ===== D. Token Apps Script (disimpan di browser, bukan di source code) =====
+ /* ============ 5. VALIDASI ABSENSI ============ */
+ const HN=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],
+  mn=s=>{const [a,b]=String(s).replace(' WIB','').split(':');return num(a)*60+num(b)},
+  fm=v=>String(v/60|0).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
+ const starts=(db,kind,nama,tgl)=>{let a;
+  if(kind==='perawat')a=db.jadwalPerawat.filter(x=>x.perawat===nama&&x.tanggal===tgl&&x.info!=='Tidak Berangkat').map(x=>isFull(x)?'10:00':(JAM[String(x.shift).split(' (')[0]]||[''])[0]);
+  else{const h=HN[new Date(tgl+'T00:00').getDay()];a=db.jadwalDokter.filter(x=>x.dokter===nama&&x.hari===h).map(x=>x.jamMulai)}
+  return{ada:a.length>0,min:a.filter(Boolean).map(mn).sort((p,q)=>p-q)[0]}};
+ const mkChk=kind=>(o,id,db)=>{if(o.status!=='Hadir')return'';
+  const k=kind==='perawat'?'perawat':'dokter',L=kind==='perawat'?db.absensiPerawat:db.absensiDokter,w=[];
+  if(L.some(x=>x.id!==id&&x[k]===o[k]&&x.tanggal===o.tanggal))w.push(o[k]+' sudah punya absensi pada '+o.tanggal+'.');
+  const s=starts(db,kind,o[k],o.tanggal);
+  if(!s.ada)w.push(o[k]+' tidak terjadwal pada '+o.tanggal+'.');
+  else if(s.min!==undefined&&o.jamMasuk&&o.jamMasuk!=='-'){const late=mn(o.jamMasuk)-s.min;if(late>15)w.push(o[k]+' terlambat '+late+' menit (jadwal mulai '+fm(s.min)+').')}
+  return w.length?w.join('\n')+'\n\nTetap simpan?':''};
+ CFG.absensiPerawat.chk=mkChk('perawat');CFG.absensiDokter.chk=mkChk('dokter');
+
+ /* ============ 6. SINKRON GOOGLE SHEET: TOKEN ============ */
  let asked=false;
  const tokenGet=()=>{let t=LS.getItem('syncToken');
   if(!t&&!asked){asked=true;t=prompt('Masukkan token sinkronisasi (sama dengan TOKEN di Apps Script):')||'';if(t)LS.setItem('syncToken',t.trim())}
-  return (t||'').trim()};
+  return(t||'').trim()};
  window.sheetCall=async function(opts){opts=opts||{};const tk=tokenGet();let url=sheetUrl;
   if(opts.method==='POST'){const b=JSON.parse(opts.body);b.token=tk;opts={...opts,body:JSON.stringify(b)}}
   else url+=(url.includes('?')?'&':'?')+'token='+encodeURIComponent(tk);
@@ -861,87 +895,36 @@ getDB();
   if(!j.ok){if(/token/i.test(j.error||'')){LS.removeItem('syncToken');asked=false}throw new Error(j.error||'Respon tidak valid')}
   return j};
 
- // ===== E. Generator jadwal perawat bulanan (salin pola 4 minggu sebelumnya) =====
- window.genBulan=function(){const db=getDB(),y=pm.getFullYear(),m=pm.getMonth(),n=new Date(y,m+1,0).getDate();
-  if(!confirm('Isi tanggal yang masih kosong di '+pm.toLocaleDateString('id-ID',{month:'long',year:'numeric'})+' dengan pola 4 minggu sebelumnya?\nTanggal yang sudah ada jadwalnya tidak diubah. Hanya jadwal normal yang disalin.'))return;
-  let id=Math.max(0,...db.jadwalPerawat.map(x=>num(x.id))),add=0;
-  for(let d=1;d<=n;d++){const s=lokal(new Date(y,m,d));if(db.jadwalPerawat.some(x=>x.tanggal===s))continue;
-   const src=lokal(new Date(y,m,d-28));
-   db.jadwalPerawat.filter(x=>x.tanggal===src&&x.info==='Jadwal Normal').forEach(r=>{db.jadwalPerawat.push({...r,id:'JPR-'+String(++id).padStart(3,'0'),tanggal:s,info:'Jadwal Normal',tukarDengan:'-',keterangan:''});add++})}
-  saveDB(db);toast(add?add+' jadwal ditambahkan. Cek dan sesuaikan seperlunya.':'Tidak ada yang ditambahkan (tanggal sudah terisi atau pola sumber kosong)',add?'success':'warning');render()};
- {const o=V.perawat_jadwal;V.perawat_jadwal=db=>o(db).replace('Muat Jadwal Asli</button>','Muat Jadwal Asli</button><button onclick="genBulan()" class="btn-g">Isi Bulan Ini Otomatis</button>')}
+ /* ============ 7. REKAP: FILTER SHIFT LANGSUNG BEKERJA ============ */
+ {const o=V.rekap_pendapatan;V.rekap_pendapatan=db=>o(db).replace('onchange="rng.shift=this.value"','onchange="rng.shift=this.value;render()"')}
 
- // ===== F. Validasi absensi terhadap jadwal (ganda, tidak terjadwal, terlambat) =====
- const HN=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],mn=s=>{const [a,b]=String(s).replace(' WIB','').split(':');return num(a)*60+num(b)},fm=v=>String(v/60|0).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
- const starts=(db,kind,nama,tgl)=>{let a;
-  if(kind==='perawat')a=db.jadwalPerawat.filter(x=>x.perawat===nama&&x.tanggal===tgl&&x.info!=='Tidak Berangkat').map(x=>isFull(x)?'10:00':(JAM[String(x.shift).split(' (')[0]]||[''])[0]);
-  else{const h=HN[new Date(tgl+'T00:00').getDay()];a=db.jadwalDokter.filter(x=>x.dokter===nama&&x.hari===h).map(x=>x.jamMulai)}
-  return {ada:a.length>0,min:a.filter(Boolean).map(mn).sort((p,q)=>p-q)[0]}};
- const mkChk=kind=>(o,id,db)=>{if(o.status!=='Hadir')return'';const k=kind==='perawat'?'perawat':'dokter',L=kind==='perawat'?db.absensiPerawat:db.absensiDokter,w=[];
-  if(L.some(x=>x.id!==id&&x[k]===o[k]&&x.tanggal===o.tanggal))w.push(o[k]+' sudah punya absensi pada '+o.tanggal+'.');
-  const s=starts(db,kind,o[k],o.tanggal);
-  if(!s.ada)w.push(o[k]+' tidak terjadwal pada '+o.tanggal+'.');
-  else if(s.min!==undefined&&o.jamMasuk&&o.jamMasuk!=='-'){const late=mn(o.jamMasuk)-s.min;if(late>15)w.push(o[k]+' terlambat '+late+' menit (jadwal mulai '+fm(s.min)+').')}
-  return w.length?w.join('\n')+'\n\nTetap simpan?':''};
- CFG.absensiPerawat.chk=mkChk('perawat');CFG.absensiDokter.chk=mkChk('dokter');
-
- // ===== G. Shift kasir otomatis mengikuti jam saat ini =====
- {const o=INIT.transaksi;INIT.transaksi=()=>{o();const s=$('tx_shift');if(s)s.selectedIndex=hhmm()<'15:00'?0:1}}
-})();
-</script>
-  <!-- ===== PATCH REVISI 4 (KASIR): tempel SEBELUM </body> terakhir, setelah script "PATCH REVISI 3" ===== -->
-<script>
-(function(){
- const num=v=>Number(v)||0;
- const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const paid=t=>(t.dibayar===undefined||t.dibayar==='')?(t.status==='Lunas'?num(t.total):0):num(t.dibayar);
- const pays=t=>{try{return JSON.parse(t.cicilan)||[]}catch(e){return[]}};
- let kc=[],PF2=null;   // keranjang kasir & isian dari reservasi
-
- // Kategori "Promo" tersedia di form Layanan (promo = layanan dengan harga promo)
- {const f=CFG.layanan.f.find(x=>x[0]==='kategori');if(f&&Array.isArray(f[3])&&!f[3].includes('Promo'))f[3].push('Promo')}
-
- const isPromo=l=>l.kategori==='Promo';
- const sisaStok=db=>{const m={};
-  db.pembelianObat.forEach(x=>{m[x.obat]=(m[x.obat]||0)+num(x.jumlah)});
-  db.pemakaianObat.forEach(x=>{if(x.obat in m)m[x.obat]-=num(x.jumlah)});return m};
+ /* ============ 8. KASIR (Layanan + Obat opsional, tanpa Promo) ============ */
+ let kc=[],PF2=null;   // keranjang & isian dari reservasi
+ const stokSisa=db=>{const m={};db.pembelianObat.forEach(x=>{m[x.obat]=(m[x.obat]||0)+nm(x.jumlah)});
+  db.pemakaianObat.forEach(x=>{if(x.obat in m)m[x.obat]-=nm(x.jumlah)});return m};
  const trxId=(db,tgl)=>{const pre='TRX-'+tgl.replace(/-/g,'')+'-';let n=db.transaksi.filter(t=>String(t.id).startsWith(pre)).length+1,id;
   do{id=pre+String(n++).padStart(3,'0')}while(db.transaksi.some(t=>t.id===id));return id};
 
- // ===== Tampilan kasir =====
  V.transaksi=db=>{
   const pn=t=>(db.pasien.find(p=>p.id===t.pasienId)||{}).nama||t.pasien,
    dn=t=>(db.dokter.find(d=>d.id===t.dokterId)||{}).nama||t.dokter,
-   st=t=>t.status==='Void'?'Void':paid(t)>=num(t.total)?'Lunas':'Belum Lunas',
+   st=t=>t.status==='Void'?'Void':paid(t)>=nm(t.total)?'Lunas':'Belum Lunas',
    rows=F(db.transaksi).slice().sort((a,b)=>a.tgl<b.tgl?1:a.tgl>b.tgl?-1:0),
-   akt=db.layanan.filter(l=>l.status!=='Nonaktif'),
-   dl=a=>a.map(l=>`<option value="${E(l.nama)}">${rp(l.harga)}</option>`).join(''),
-   sk=sisaStok(db),
-   dlObat=Object.keys(sk).map(o=>`<option value="${E(o)}">sisa ${sk[o]}</option>`).join('');
+   sk=stokSisa(db);
   const form=`<h3 class="font-extrabold text-base mb-3">💳 Form Pembayaran Kasir</h3><form onsubmit="prosesTx(event)" class="space-y-3">
   <label class="lb">Pilih Pasien<select id="tx_p" class="inp">${db.pasien.map(p=>`<option value="${p.id}">${E(p.nama)} (${p.id})</option>`).join('')}</select></label>
   <label class="lb">Dokter Penanggung Jawab<select id="tx_d" class="inp">${db.dokter.map(d=>`<option value="${d.id}">${E(d.nama)}</option>`).join('')}</select></label>
-
-  <div class="lb">Layanan Gigi (ketik untuk mencari)
-   <div class="flex gap-2 mt-1"><input id="tx_l" list="dl_l" class="inp" placeholder="Ketik nama layanan..." autocomplete="off" onkeydown="kEnter(event,'layanan')">
+  <div class="lb">Layanan Gigi
+   <div class="flex gap-2 mt-1"><input id="tx_l" list="dl_l" class="inp" placeholder="Nama layanan" autocomplete="off" onkeydown="kEnter(event,'layanan')">
    <input id="tx_q" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah">
    <button type="button" onclick="addCart('layanan')" class="btn-p whitespace-nowrap">+ Tambah</button></div>
-   <datalist id="dl_l">${dl(akt.filter(l=>!isPromo(l)))}</datalist></div>
-
-  <div class="lb">Promo (ketik untuk mencari)
-   <div class="flex gap-2 mt-1"><input id="tx_pr" list="dl_pr" class="inp" placeholder="Ketik nama promo..." autocomplete="off" onkeydown="kEnter(event,'promo')">
-   <input id="tx_prq" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah">
-   <button type="button" onclick="addCart('promo')" class="btn-p whitespace-nowrap">+ Tambah</button></div>
-   <datalist id="dl_pr">${dl(akt.filter(isPromo))}</datalist>
-   <button type="button" onclick="openForm('layanan',null,{kategori:'Promo'})" class="text-brand-600 font-bold text-[11px] mt-1">+ Promo Baru (atur di menu Layanan Gigi untuk edit)</button></div>
-
-  <div class="lb">Obat (opsional, boleh dikosongkan)
-   <div class="grid grid-cols-3 gap-2 mt-1"><input id="tx_o" list="dl_o" class="inp col-span-3" placeholder="Ketik nama obat..." autocomplete="off" onkeydown="kEnter(event,'obat')">
+   <datalist id="dl_l">${db.layanan.filter(l=>l.status!=='Nonaktif').map(l=>`<option value="${E(l.nama)}">${rp(l.harga)}</option>`).join('')}</datalist></div>
+  <div class="lb">Obat
+   <div class="grid grid-cols-3 gap-2 mt-1"><input id="tx_o" list="dl_o" class="inp col-span-3" placeholder="Nama obat" autocomplete="off" onkeydown="kEnter(event,'obat')">
    <input id="tx_oq" type="number" min="1" value="1" class="inp" title="Jumlah">
-   <input id="tx_oh" type="number" min="0" class="inp" placeholder="Harga (kosong = gratis)">
+   <input id="tx_oh" type="number" min="0" class="inp" placeholder="Harga">
    <button type="button" onclick="addCart('obat')" class="btn-p">+ Obat</button></div>
-   <datalist id="dl_o">${dlObat}</datalist></div>
-
+   <datalist id="dl_o">${Object.keys(sk).map(o=>`<option value="${E(o)}">sisa ${sk[o]}</option>`).join('')}</datalist></div>
   <div id="tx_cart" class="space-y-1"></div>
   <label class="lb">Tanggal Transaksi<input id="tx_t" type="date" value="${today()}" class="inp"></label>
   <label class="lb">Shift Pendapatan<select id="tx_shift" class="inp">${SHIFT_D.slice(0,2).map(s=>`<option>${s}</option>`).join('')}</select></label>
@@ -949,119 +932,82 @@ getDB();
   <div class="bg-gold-100 p-3 rounded-2xl flex justify-between font-bold text-xs"><span>Total Tagihan:</span><span id="tx_tot" class="text-base text-brand-600">Rp 0</span></div>
   <button class="btn-p w-full py-3">Selesaikan Transaksi & Bayar</button></form>`;
   const btn=(f,id,c,ic,t)=>`<button onclick="${f}('${id}')" class="text-${c}-700 font-bold bg-${c}-50 px-2 py-1 rounded-xl" title="${t}"><i class="fa-solid ${ic}"></i></button>`;
-  const hapus=id=>`<button onclick="del('transaksi','${id}')" class="text-red-700 font-bold bg-red-50 px-2 py-1 rounded-xl" title="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button>`;
-  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${card(form)}<div class="lg:col-span-2">${card(head('Riwayat Transaksi','Salah input? Klik ikon tempat sampah untuk menghapus (bisa diurungkan)')
-   +tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${E(pn(r))}</b><br><span class="text-slate-400">${E(dn(r))}</span>`],
-    ['Tindakan',r=>E(r.layanan)+(r.status==='Void'?`<br><span class="text-red-600">Void: ${E(r.voidAlasan)}</span>`:'')],['Total',r=>`<b>${rp(r.total)}</b>`],['Dibayar',r=>rp(paid(r))],['Sisa',r=>r.status==='Void'?'-':rp(Math.max(0,num(r.total)-paid(r)))],
-    ['Status',r=>bdg(st(r))],
-    ['Aksi',r=>btn('invoice',r.id,'brand','fa-print','Nota')+(st(r)==='Belum Lunas'?' '+btn('bayarSisa',r.id,'emerald','fa-coins','Pelunasan'):'')+(r.status!=='Void'?' '+btn('voidTx',r.id,'amber','fa-ban','Void'):'')+' '+hapus(r.id)]],rows,false))}</div></div>`};
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${card(form)}<div class="lg:col-span-2">${card(head('Riwayat Transaksi','')
+   +tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],
+    ['Pasien',r=>`<b>${E(pn(r))}</b><br><span class="text-slate-400">${E(dn(r))}</span>`],
+    ['Tindakan',r=>E(r.layanan)+(r.status==='Void'?`<br><span class="text-red-600">Void: ${E(r.voidAlasan)}</span>`:'')],
+    ['Total',r=>`<b>${rp(r.total)}</b>`],['Dibayar',r=>rp(paid(r))],
+    ['Sisa',r=>r.status==='Void'?'-':rp(Math.max(0,nm(r.total)-paid(r)))],['Status',r=>bdg(st(r))],
+    ['Aksi',r=>btn('invoice',r.id,'brand','fa-print','Nota')+(st(r)==='Belum Lunas'?' '+btn('bayarSisa',r.id,'emerald','fa-coins','Pelunasan'):'')
+      +(r.status!=='Void'?' '+btn('voidTx',r.id,'amber','fa-ban','Void'):'')
+      +` <button onclick="del('transaksi','${r.id}')" class="text-red-700 font-bold bg-red-50 px-2 py-1 rounded-xl" title="Hapus"><i class="fa-solid fa-trash-can"></i></button>`]],rows,false))}</div></div>`};
 
- // ===== Keranjang =====
- window.kEnter=function(e,k){if(e.key==='Enter'){e.preventDefault();addCart(k)}};
- function cari(list,v){v=v.trim().toLowerCase();if(!v)return null;
-  return list.find(l=>l.nama.toLowerCase()===v)||(()=>{const m=list.filter(l=>l.nama.toLowerCase().includes(v));return m.length===1?m[0]:null})()}
- function push(tipe,nama,harga,qty){const e=kc.find(x=>x.tipe===tipe&&x.nama===nama&&x.harga===harga);if(e)e.qty+=qty;else kc.push({tipe,nama,harga,qty})}
- window.addCart=function(k){const db=getDB();
-  if(k==='obat'){const n=$('tx_o').value.trim();if(!n)return toast('Isi nama obat, atau kosongkan jika tidak ada obat','warning');
-   push('obat',n,num($('tx_oh').value),Math.max(1,parseInt($('tx_oq').value)||1));$('tx_o').value='';$('tx_oq').value=1;$('tx_oh').value='';return drawCart()}
-  const promo=k==='promo',inp=$(promo?'tx_pr':'tx_l'),qi=$(promo?'tx_prq':'tx_q'),
-   list=db.layanan.filter(l=>l.status!=='Nonaktif'&&isPromo(l)===promo),l=cari(list,inp.value);
-  if(!l)return toast(promo?'Promo tidak ditemukan. Pilih dari saran atau buat Promo Baru':'Layanan tidak ditemukan. Pilih dari saran yang muncul','warning');
-  push(promo?'promo':'layanan',l.nama,num(l.harga),Math.max(1,parseInt(qi.value)||1));inp.value='';qi.value=1;drawCart();inp.focus()};
+ // --- keranjang ---
+ window.kEnter=(e,k)=>{if(e.key==='Enter'){e.preventDefault();addCart(k)}};
+ const cari=(list,v)=>{v=v.trim().toLowerCase();if(!v)return null;
+  return list.find(l=>l.nama.toLowerCase()===v)||(()=>{const m=list.filter(l=>l.nama.toLowerCase().includes(v));return m.length===1?m[0]:null})()};
+ const push=(tipe,nama,harga,qty)=>{const e=kc.find(x=>x.tipe===tipe&&x.nama===nama&&x.harga===harga);if(e)e.qty+=qty;else kc.push({tipe,nama,harga,qty})};
+ window.addCart=function(k){
+  if(k==='obat'){const n=$('tx_o').value.trim();if(!n)return toast('Isi nama obat','warning');
+   push('obat',n,nm($('tx_oh').value),Math.max(1,parseInt($('tx_oq').value)||1));
+   $('tx_o').value='';$('tx_oq').value=1;$('tx_oh').value='';return drawCart()}
+  const l=cari(getDB().layanan.filter(x=>x.status!=='Nonaktif'),$('tx_l').value);
+  if(!l)return toast('Layanan tidak ditemukan. Pilih dari saran yang muncul','warning');
+  push('layanan',l.nama,nm(l.harga),Math.max(1,parseInt($('tx_q').value)||1));$('tx_l').value='';$('tx_q').value=1;drawCart();$('tx_l').focus()};
  window.rmCart=i=>{kc.splice(i,1);drawCart()};
- window.drawCart=function(){const el=$('tx_cart');if(!el)return;const tot=kc.reduce((s,x)=>s+x.harga*x.qty,0);tx=tot;
-  const lb={layanan:'',promo:'<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold mr-1">PROMO</span>',obat:'<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">OBAT</span>'};
-  el.innerHTML=kc.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${lb[x.tipe]}${E(x.nama)} × ${x.qty}</span><span><b>${x.harga?rp(x.harga*x.qty):'Gratis'}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada item dipilih</p>';
+ window.drawCart=function(){const el=$('tx_cart');if(!el)return;const tot=kc.reduce((s,x)=>s+x.harga*x.qty,0);
+  const tag='<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">OBAT</span>';
+  el.innerHTML=kc.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${x.tipe==='obat'?tag:''}${E(x.nama)} × ${x.qty}</span><span><b>${x.harga?rp(x.harga*x.qty):'Gratis'}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada item</p>';
   $('tx_tot').textContent=rp(tot)};
 
- // ===== Simpan transaksi (otomatis lunas) + kurangi stok obat =====
- window.prosesTx=function(e){e.preventDefault();if(!kc.length)return toast('Tambahkan minimal 1 layanan, promo, atau obat!','warning');
-  const db=getDB(),tgl=$('tx_t').value||today(),p=db.pasien.find(x=>x.id===$('tx_p').value),d=db.dokter.find(x=>x.id===$('tx_d').value),m=document.querySelector('input[name=tx_m]:checked').value;
+ // --- simpan transaksi (otomatis lunas) + kurangi stok obat ---
+ window.prosesTx=function(e){e.preventDefault();if(!kc.length)return toast('Tambahkan minimal 1 layanan','warning');
+  const db=getDB(),tgl=$('tx_t').value||today(),p=db.pasien.find(x=>x.id===$('tx_p').value),d=db.dokter.find(x=>x.id===$('tx_d').value),
+   m=document.querySelector('input[name=tx_m]:checked').value;
   if(!p||!d)return toast('Pasien dan dokter harus dipilih','warning');
-  const it=kc.map(x=>({nama:x.tipe==='obat'?'Obat: '+x.nama:x.nama,harga:x.harga,qty:x.qty,tipe:x.tipe})),total=it.reduce((s,x)=>s+x.harga*x.qty,0),id=trxId(db,tgl);
-  db.transaksi.unshift({id,tgl,pasienId:p.id,pasien:p.nama,dokterId:d.id,dokter:d.nama,layanan:it.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),items:JSON.stringify(it),shift:$('tx_shift').value,
-   total,dibayar:total,cicilan:JSON.stringify([{tgl,jumlah:total,metode:m}]),metode:m,status:'Lunas',voidAlasan:'',voidAt:''});
-  let n=Math.max(0,...db.pemakaianObat.map(x=>parseInt(String(x.id).replace(/\D/g,''))||0));
+  const it=kc.map(x=>({nama:x.tipe==='obat'?'Obat: '+x.nama:x.nama,harga:x.harga,qty:x.qty,tipe:x.tipe})),
+   total=it.reduce((s,x)=>s+x.harga*x.qty,0),id=trxId(db,tgl);
+  db.transaksi.unshift({id,tgl,pasienId:p.id,pasien:p.nama,dokterId:d.id,dokter:d.nama,layanan:it.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),
+   items:JSON.stringify(it),shift:$('tx_shift').value,total,dibayar:total,cicilan:JSON.stringify([{tgl,jumlah:total,metode:m}]),metode:m,status:'Lunas',voidAlasan:'',voidAt:''});
+  let n=Math.max(0,...db.pemakaianObat.map(x=>num(x.id)));
   kc.filter(x=>x.tipe==='obat').forEach(x=>db.pemakaianObat.unshift({id:'PKO-'+String(++n).padStart(3,'0'),tanggal:tgl,obat:x.nama,jumlah:x.qty,catatan:'Kasir '+id}));
   saveDB(db);kc=[];toast('Transaksi sukses!','success');render()};
 
- // ===== Hapus transaksi (dengan urungkan) =====
+ // --- hapus transaksi (bisa diurungkan) + void mengembalikan stok ---
  const _del=window.del;
  window.del=function(c,id){if(c!=='transaksi')return _del(c,id);
   const db=getDB(),i=db.transaksi.findIndex(x=>x.id===id);if(i<0)return;const r=db.transaksi[i];
-  if(!confirm('Hapus transaksi '+r.id+' ('+r.pasien+', '+rp(r.total)+')?\nPemakaian obat dari transaksi ini juga ikut dihapus.\nBisa diurungkan selama 8 detik.'))return;
+  if(!confirm('Hapus transaksi '+r.id+' ('+r.pasien+', '+rp(r.total)+')?\nPemakaian obat dari transaksi ini ikut dihapus. Bisa diurungkan selama 8 detik.'))return;
   const tag='Kasir '+id,pk=db.pemakaianObat.filter(x=>x.catatan===tag);
   db.transaksi.splice(i,1);db.pemakaianObat=db.pemakaianObat.filter(x=>x.catatan!==tag);saveDB(db);render();
   const el=document.createElement('div');el.className='bg-slate-800 text-white text-xs px-4 py-3 rounded-2xl shadow-xl pointer-events-auto flex items-center gap-3';
   el.innerHTML='<span>Transaksi dihapus.</span><button class="font-bold underline text-gold-300">Urungkan</button>';
-  el.querySelector('button').onclick=()=>{const d=getDB();if(!d.transaksi.some(x=>x.id===r.id))d.transaksi.splice(Math.min(i,d.transaksi.length),0,r);pk.forEach(x=>{if(!d.pemakaianObat.some(y=>y.id===x.id))d.pemakaianObat.push(x)});saveDB(d);el.remove();render();toast('Transaksi dikembalikan','success')};
+  el.querySelector('button').onclick=()=>{const d=getDB();if(!d.transaksi.some(x=>x.id===r.id))d.transaksi.splice(Math.min(i,d.transaksi.length),0,r);
+   pk.forEach(x=>{if(!d.pemakaianObat.some(y=>y.id===x.id))d.pemakaianObat.push(x)});saveDB(d);el.remove();render();toast('Transaksi dikembalikan','success')};
   $('toasts').appendChild(el);setTimeout(()=>el.remove(),8000)};
-
- // Void juga mengembalikan stok obat
  const _void=window.voidTx;
  window.voidTx=function(id){_void(id);const db=getDB(),t=db.transaksi.find(x=>x.id===id);
   if(t&&t.status==='Void'&&db.pemakaianObat.some(x=>x.catatan==='Kasir '+id)){db.pemakaianObat=db.pemakaianObat.filter(x=>x.catatan!=='Kasir '+id);saveDB(db);render()}};
 
- // ===== Dari reservasi "Selesai" -> kasir =====
+ // --- reservasi "Selesai" -> kasir ---
  window.bayarRes=function(id){const db=getDB(),r=db.reservasi.find(x=>x.id===id);
   let p=db.pasien.find(x=>r.phone&&x.phone===r.phone)||db.pasien.find(x=>x.nama===r.nama);
   if(!p){p={id:nid('pasien'),nama:r.nama,umur:0,gender:'Laki-laki',phone:r.phone,riwayat:r.layanan,tglKunjungan:r.tanggal};db.pasien.unshift(p);saveDB(db);toast('Pasien baru dibuat dari data reservasi')}
   const d=db.dokter.find(x=>x.nama===r.dokter);PF2={p:p.id,d:d&&d.id,l:db.layanan.find(x=>x.nama===r.layanan),tgl:r.tanggal};go('transaksi')};
- { const o=INIT.transaksi;
-   INIT.transaksi=()=>{if(typeof o==='function')o();
-    if(PF2){const f=PF2;PF2=null;kc=[];if(f.p)$('tx_p').value=f.p;if(f.d)$('tx_d').value=f.d;
-     if(f.l)push(isPromo(f.l)?'promo':'layanan',f.l.nama,num(f.l.harga),1);$('tx_t').value=f.tgl}
-    drawCart()} }
-})();
-  <!-- ===== PATCH REVISI 5 (TAMPILAN BERSIH): tempel SEBELUM </body> terakhir, setelah script "PATCH REVISI 4" ===== -->
-<script>
-(function(){
- // Teks petunjuk yang dihapus (kiri) -> teks pengganti (kanan)
- const TEXT=[
-  [' (opsional, boleh dikosongkan)',''],
-  [' (ketik untuk mencari)',''],
-  [' (boleh lebih dari 1)',''],
-  [' (atur di menu Layanan Gigi untuk edit)',''],
-  [' (kosong jika panggilan)',''],
-  [' (jika tukar)',''],
-  [' (pisah koma, mis. 16, 26)',''],
-  [' (tanggal)',''],
-  [' (opsional)',''],
-  [' (kosong = lunas; isi untuk DP/cicilan)',''],
-  [', 0 = tidak)',')']
- ];
- const ATTR=[
-  ['Harga (kosong = gratis)','Harga'],
-  ['Ketik nama layanan...','Nama layanan'],
-  ['Ketik nama promo...','Nama promo'],
-  ['Ketik nama obat...','Nama obat']
- ];
 
- function cleanText(root){
-  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
-  while((n=w.nextNode())){let v=n.nodeValue,o=v;
-   TEXT.forEach(([a,b])=>{if(v.includes(a))v=v.split(a).join(b)});
-   if(v!==o)n.nodeValue=v}
- }
- function cleanAttr(root){
-  root.querySelectorAll('[placeholder],[title]').forEach(e=>{
-   ATTR.forEach(([a,b])=>{if(e.getAttribute('placeholder')===a)e.setAttribute('placeholder',b)});
-   const t=e.getAttribute('title');if(t&&t.includes('(opsional'))e.removeAttribute('title')})
- }
- function cleanBlocks(root){
-  // Subtitle/penjelasan di bawah judul setiap kartu
+ // --- inisialisasi halaman kasir (isian reservasi + shift otomatis sesuai jam) ---
+ INIT.transaksi=()=>{
+  if(PF2){const f=PF2;PF2=null;kc=[];if(f.p)$('tx_p').value=f.p;if(f.d)$('tx_d').value=f.d;
+   if(f.l)push('layanan',f.l.nama,nm(f.l.harga),1);$('tx_t').value=f.tgl}
+  drawCart();const s=$('tx_shift');if(s)s.selectedIndex=hhmm()<'15:00'?0:1};
+
+ /* ============ 9. TAMPILAN BERSIH: hapus subtitle & keterangan kecil ============ */
+ const targets=['content','mbody'].map(id=>$(id)).filter(Boolean);
+ const bersih=root=>{
   root.querySelectorAll('h2.text-base + p.text-xs').forEach(p=>p.remove());
-  // Keterangan kecil lainnya
-  root.querySelectorAll('p').forEach(p=>{
-   const t=(p.textContent||'').trim();
-   if(t.startsWith('Gigi berwarna =')||t.startsWith('Contoh:'))p.remove()})
- }
- function clean(root){if(!root)return;cleanText(root);cleanAttr(root);cleanBlocks(root)}
-
- const targets=['content','mbody'].map(id=>document.getElementById(id)).filter(Boolean);
- const obs=new MutationObserver(()=>{obs.disconnect();targets.forEach(clean);targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}))});
- targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}));
- targets.forEach(clean);
+  root.querySelectorAll('p').forEach(p=>{const t=(p.textContent||'').trim();if(t.startsWith('Gigi berwarna =')||t.startsWith('Contoh:'))p.remove()})};
+ const obs=new MutationObserver(()=>{obs.disconnect();targets.forEach(bersih);targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}))});
+ targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}));targets.forEach(bersih);
 })();
 </script>
 </script>
