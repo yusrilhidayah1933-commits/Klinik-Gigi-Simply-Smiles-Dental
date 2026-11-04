@@ -889,5 +889,130 @@ getDB();
  {const o=INIT.transaksi;INIT.transaksi=()=>{o();const s=$('tx_shift');if(s)s.selectedIndex=hhmm()<'15:00'?0:1}}
 })();
 </script>
+  <!-- ===== PATCH REVISI 4 (KASIR): tempel SEBELUM </body> terakhir, setelah script "PATCH REVISI 3" ===== -->
+<script>
+(function(){
+ const num=v=>Number(v)||0;
+ const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const paid=t=>(t.dibayar===undefined||t.dibayar==='')?(t.status==='Lunas'?num(t.total):0):num(t.dibayar);
+ const pays=t=>{try{return JSON.parse(t.cicilan)||[]}catch(e){return[]}};
+ let kc=[],PF2=null;   // keranjang kasir & isian dari reservasi
+
+ // Kategori "Promo" tersedia di form Layanan (promo = layanan dengan harga promo)
+ {const f=CFG.layanan.f.find(x=>x[0]==='kategori');if(f&&Array.isArray(f[3])&&!f[3].includes('Promo'))f[3].push('Promo')}
+
+ const isPromo=l=>l.kategori==='Promo';
+ const sisaStok=db=>{const m={};
+  db.pembelianObat.forEach(x=>{m[x.obat]=(m[x.obat]||0)+num(x.jumlah)});
+  db.pemakaianObat.forEach(x=>{if(x.obat in m)m[x.obat]-=num(x.jumlah)});return m};
+ const trxId=(db,tgl)=>{const pre='TRX-'+tgl.replace(/-/g,'')+'-';let n=db.transaksi.filter(t=>String(t.id).startsWith(pre)).length+1,id;
+  do{id=pre+String(n++).padStart(3,'0')}while(db.transaksi.some(t=>t.id===id));return id};
+
+ // ===== Tampilan kasir =====
+ V.transaksi=db=>{
+  const pn=t=>(db.pasien.find(p=>p.id===t.pasienId)||{}).nama||t.pasien,
+   dn=t=>(db.dokter.find(d=>d.id===t.dokterId)||{}).nama||t.dokter,
+   st=t=>t.status==='Void'?'Void':paid(t)>=num(t.total)?'Lunas':'Belum Lunas',
+   rows=F(db.transaksi).slice().sort((a,b)=>a.tgl<b.tgl?1:a.tgl>b.tgl?-1:0),
+   akt=db.layanan.filter(l=>l.status!=='Nonaktif'),
+   dl=a=>a.map(l=>`<option value="${E(l.nama)}">${rp(l.harga)}</option>`).join(''),
+   sk=sisaStok(db),
+   dlObat=Object.keys(sk).map(o=>`<option value="${E(o)}">sisa ${sk[o]}</option>`).join('');
+  const form=`<h3 class="font-extrabold text-base mb-3">💳 Form Pembayaran Kasir</h3><form onsubmit="prosesTx(event)" class="space-y-3">
+  <label class="lb">Pilih Pasien<select id="tx_p" class="inp">${db.pasien.map(p=>`<option value="${p.id}">${E(p.nama)} (${p.id})</option>`).join('')}</select></label>
+  <label class="lb">Dokter Penanggung Jawab<select id="tx_d" class="inp">${db.dokter.map(d=>`<option value="${d.id}">${E(d.nama)}</option>`).join('')}</select></label>
+
+  <div class="lb">Layanan Gigi (ketik untuk mencari)
+   <div class="flex gap-2 mt-1"><input id="tx_l" list="dl_l" class="inp" placeholder="Ketik nama layanan..." autocomplete="off" onkeydown="kEnter(event,'layanan')">
+   <input id="tx_q" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah">
+   <button type="button" onclick="addCart('layanan')" class="btn-p whitespace-nowrap">+ Tambah</button></div>
+   <datalist id="dl_l">${dl(akt.filter(l=>!isPromo(l)))}</datalist></div>
+
+  <div class="lb">Promo (ketik untuk mencari)
+   <div class="flex gap-2 mt-1"><input id="tx_pr" list="dl_pr" class="inp" placeholder="Ketik nama promo..." autocomplete="off" onkeydown="kEnter(event,'promo')">
+   <input id="tx_prq" type="number" min="1" value="1" class="inp" style="width:70px" title="Jumlah">
+   <button type="button" onclick="addCart('promo')" class="btn-p whitespace-nowrap">+ Tambah</button></div>
+   <datalist id="dl_pr">${dl(akt.filter(isPromo))}</datalist>
+   <button type="button" onclick="openForm('layanan',null,{kategori:'Promo'})" class="text-brand-600 font-bold text-[11px] mt-1">+ Promo Baru (atur di menu Layanan Gigi untuk edit)</button></div>
+
+  <div class="lb">Obat (opsional, boleh dikosongkan)
+   <div class="grid grid-cols-3 gap-2 mt-1"><input id="tx_o" list="dl_o" class="inp col-span-3" placeholder="Ketik nama obat..." autocomplete="off" onkeydown="kEnter(event,'obat')">
+   <input id="tx_oq" type="number" min="1" value="1" class="inp" title="Jumlah">
+   <input id="tx_oh" type="number" min="0" class="inp" placeholder="Harga (kosong = gratis)">
+   <button type="button" onclick="addCart('obat')" class="btn-p">+ Obat</button></div>
+   <datalist id="dl_o">${dlObat}</datalist></div>
+
+  <div id="tx_cart" class="space-y-1"></div>
+  <label class="lb">Tanggal Transaksi<input id="tx_t" type="date" value="${today()}" class="inp"></label>
+  <label class="lb">Shift Pendapatan<select id="tx_shift" class="inp">${SHIFT_D.slice(0,2).map(s=>`<option>${s}</option>`).join('')}</select></label>
+  <div class="lb">Metode Pembayaran<div class="grid grid-cols-3 gap-2 mt-1">${['Tunai','QRIS','Transfer Bank'].map((m,i)=>`<label class="border p-2 rounded-xl text-center cursor-pointer text-[11px]"><input type="radio" name="tx_m" value="${m}" ${i?'':'checked'}> ${m}</label>`).join('')}</div></div>
+  <div class="bg-gold-100 p-3 rounded-2xl flex justify-between font-bold text-xs"><span>Total Tagihan:</span><span id="tx_tot" class="text-base text-brand-600">Rp 0</span></div>
+  <button class="btn-p w-full py-3">Selesaikan Transaksi & Bayar</button></form>`;
+  const btn=(f,id,c,ic,t)=>`<button onclick="${f}('${id}')" class="text-${c}-700 font-bold bg-${c}-50 px-2 py-1 rounded-xl" title="${t}"><i class="fa-solid ${ic}"></i></button>`;
+  const hapus=id=>`<button onclick="del('transaksi','${id}')" class="text-red-700 font-bold bg-red-50 px-2 py-1 rounded-xl" title="Hapus transaksi"><i class="fa-solid fa-trash-can"></i></button>`;
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">${card(form)}<div class="lg:col-span-2">${card(head('Riwayat Transaksi','Salah input? Klik ikon tempat sampah untuk menghapus (bisa diurungkan)')
+   +tbl('transaksi',[['ID',r=>`<b class="text-brand-600">${r.id}</b>`],['Tanggal',r=>r.tgl],['Pasien',r=>`<b>${E(pn(r))}</b><br><span class="text-slate-400">${E(dn(r))}</span>`],
+    ['Tindakan',r=>E(r.layanan)+(r.status==='Void'?`<br><span class="text-red-600">Void: ${E(r.voidAlasan)}</span>`:'')],['Total',r=>`<b>${rp(r.total)}</b>`],['Dibayar',r=>rp(paid(r))],['Sisa',r=>r.status==='Void'?'-':rp(Math.max(0,num(r.total)-paid(r)))],
+    ['Status',r=>bdg(st(r))],
+    ['Aksi',r=>btn('invoice',r.id,'brand','fa-print','Nota')+(st(r)==='Belum Lunas'?' '+btn('bayarSisa',r.id,'emerald','fa-coins','Pelunasan'):'')+(r.status!=='Void'?' '+btn('voidTx',r.id,'amber','fa-ban','Void'):'')+' '+hapus(r.id)]],rows,false))}</div></div>`};
+
+ // ===== Keranjang =====
+ window.kEnter=function(e,k){if(e.key==='Enter'){e.preventDefault();addCart(k)}};
+ function cari(list,v){v=v.trim().toLowerCase();if(!v)return null;
+  return list.find(l=>l.nama.toLowerCase()===v)||(()=>{const m=list.filter(l=>l.nama.toLowerCase().includes(v));return m.length===1?m[0]:null})()}
+ function push(tipe,nama,harga,qty){const e=kc.find(x=>x.tipe===tipe&&x.nama===nama&&x.harga===harga);if(e)e.qty+=qty;else kc.push({tipe,nama,harga,qty})}
+ window.addCart=function(k){const db=getDB();
+  if(k==='obat'){const n=$('tx_o').value.trim();if(!n)return toast('Isi nama obat, atau kosongkan jika tidak ada obat','warning');
+   push('obat',n,num($('tx_oh').value),Math.max(1,parseInt($('tx_oq').value)||1));$('tx_o').value='';$('tx_oq').value=1;$('tx_oh').value='';return drawCart()}
+  const promo=k==='promo',inp=$(promo?'tx_pr':'tx_l'),qi=$(promo?'tx_prq':'tx_q'),
+   list=db.layanan.filter(l=>l.status!=='Nonaktif'&&isPromo(l)===promo),l=cari(list,inp.value);
+  if(!l)return toast(promo?'Promo tidak ditemukan. Pilih dari saran atau buat Promo Baru':'Layanan tidak ditemukan. Pilih dari saran yang muncul','warning');
+  push(promo?'promo':'layanan',l.nama,num(l.harga),Math.max(1,parseInt(qi.value)||1));inp.value='';qi.value=1;drawCart();inp.focus()};
+ window.rmCart=i=>{kc.splice(i,1);drawCart()};
+ window.drawCart=function(){const el=$('tx_cart');if(!el)return;const tot=kc.reduce((s,x)=>s+x.harga*x.qty,0);tx=tot;
+  const lb={layanan:'',promo:'<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold mr-1">PROMO</span>',obat:'<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold mr-1">OBAT</span>'};
+  el.innerHTML=kc.map((x,i)=>`<div class="flex justify-between items-center p-2 rounded-xl bg-white border text-[11px]"><span>${lb[x.tipe]}${E(x.nama)} × ${x.qty}</span><span><b>${x.harga?rp(x.harga*x.qty):'Gratis'}</b><button type="button" onclick="rmCart(${i})" class="text-red-500 ml-2"><i class="fa-solid fa-xmark"></i></button></span></div>`).join('')||'<p class="text-slate-400 text-[11px]">Belum ada item dipilih</p>';
+  $('tx_tot').textContent=rp(tot)};
+
+ // ===== Simpan transaksi (otomatis lunas) + kurangi stok obat =====
+ window.prosesTx=function(e){e.preventDefault();if(!kc.length)return toast('Tambahkan minimal 1 layanan, promo, atau obat!','warning');
+  const db=getDB(),tgl=$('tx_t').value||today(),p=db.pasien.find(x=>x.id===$('tx_p').value),d=db.dokter.find(x=>x.id===$('tx_d').value),m=document.querySelector('input[name=tx_m]:checked').value;
+  if(!p||!d)return toast('Pasien dan dokter harus dipilih','warning');
+  const it=kc.map(x=>({nama:x.tipe==='obat'?'Obat: '+x.nama:x.nama,harga:x.harga,qty:x.qty,tipe:x.tipe})),total=it.reduce((s,x)=>s+x.harga*x.qty,0),id=trxId(db,tgl);
+  db.transaksi.unshift({id,tgl,pasienId:p.id,pasien:p.nama,dokterId:d.id,dokter:d.nama,layanan:it.map(x=>x.nama+(x.qty>1?' ×'+x.qty:'')).join(', '),items:JSON.stringify(it),shift:$('tx_shift').value,
+   total,dibayar:total,cicilan:JSON.stringify([{tgl,jumlah:total,metode:m}]),metode:m,status:'Lunas',voidAlasan:'',voidAt:''});
+  let n=Math.max(0,...db.pemakaianObat.map(x=>parseInt(String(x.id).replace(/\D/g,''))||0));
+  kc.filter(x=>x.tipe==='obat').forEach(x=>db.pemakaianObat.unshift({id:'PKO-'+String(++n).padStart(3,'0'),tanggal:tgl,obat:x.nama,jumlah:x.qty,catatan:'Kasir '+id}));
+  saveDB(db);kc=[];toast('Transaksi sukses!','success');render()};
+
+ // ===== Hapus transaksi (dengan urungkan) =====
+ const _del=window.del;
+ window.del=function(c,id){if(c!=='transaksi')return _del(c,id);
+  const db=getDB(),i=db.transaksi.findIndex(x=>x.id===id);if(i<0)return;const r=db.transaksi[i];
+  if(!confirm('Hapus transaksi '+r.id+' ('+r.pasien+', '+rp(r.total)+')?\nPemakaian obat dari transaksi ini juga ikut dihapus.\nBisa diurungkan selama 8 detik.'))return;
+  const tag='Kasir '+id,pk=db.pemakaianObat.filter(x=>x.catatan===tag);
+  db.transaksi.splice(i,1);db.pemakaianObat=db.pemakaianObat.filter(x=>x.catatan!==tag);saveDB(db);render();
+  const el=document.createElement('div');el.className='bg-slate-800 text-white text-xs px-4 py-3 rounded-2xl shadow-xl pointer-events-auto flex items-center gap-3';
+  el.innerHTML='<span>Transaksi dihapus.</span><button class="font-bold underline text-gold-300">Urungkan</button>';
+  el.querySelector('button').onclick=()=>{const d=getDB();if(!d.transaksi.some(x=>x.id===r.id))d.transaksi.splice(Math.min(i,d.transaksi.length),0,r);pk.forEach(x=>{if(!d.pemakaianObat.some(y=>y.id===x.id))d.pemakaianObat.push(x)});saveDB(d);el.remove();render();toast('Transaksi dikembalikan','success')};
+  $('toasts').appendChild(el);setTimeout(()=>el.remove(),8000)};
+
+ // Void juga mengembalikan stok obat
+ const _void=window.voidTx;
+ window.voidTx=function(id){_void(id);const db=getDB(),t=db.transaksi.find(x=>x.id===id);
+  if(t&&t.status==='Void'&&db.pemakaianObat.some(x=>x.catatan==='Kasir '+id)){db.pemakaianObat=db.pemakaianObat.filter(x=>x.catatan!=='Kasir '+id);saveDB(db);render()}};
+
+ // ===== Dari reservasi "Selesai" -> kasir =====
+ window.bayarRes=function(id){const db=getDB(),r=db.reservasi.find(x=>x.id===id);
+  let p=db.pasien.find(x=>r.phone&&x.phone===r.phone)||db.pasien.find(x=>x.nama===r.nama);
+  if(!p){p={id:nid('pasien'),nama:r.nama,umur:0,gender:'Laki-laki',phone:r.phone,riwayat:r.layanan,tglKunjungan:r.tanggal};db.pasien.unshift(p);saveDB(db);toast('Pasien baru dibuat dari data reservasi')}
+  const d=db.dokter.find(x=>x.nama===r.dokter);PF2={p:p.id,d:d&&d.id,l:db.layanan.find(x=>x.nama===r.layanan),tgl:r.tanggal};go('transaksi')};
+ { const o=INIT.transaksi;
+   INIT.transaksi=()=>{if(typeof o==='function')o();
+    if(PF2){const f=PF2;PF2=null;kc=[];if(f.p)$('tx_p').value=f.p;if(f.d)$('tx_d').value=f.d;
+     if(f.l)push(isPromo(f.l)?'promo':'layanan',f.l.nama,num(f.l.harga),1);$('tx_t').value=f.tgl}
+    drawCart()} }
+})();
+</script>
 </body>
 </html>
