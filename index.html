@@ -1013,6 +1013,57 @@ getDB();
      if(f.l)push(isPromo(f.l)?'promo':'layanan',f.l.nama,num(f.l.harga),1);$('tx_t').value=f.tgl}
     drawCart()} }
 })();
+  <!-- ===== PATCH REVISI 5 (TAMPILAN BERSIH): tempel SEBELUM </body> terakhir, setelah script "PATCH REVISI 4" ===== -->
+<script>
+(function(){
+ // Teks petunjuk yang dihapus (kiri) -> teks pengganti (kanan)
+ const TEXT=[
+  [' (opsional, boleh dikosongkan)',''],
+  [' (ketik untuk mencari)',''],
+  [' (boleh lebih dari 1)',''],
+  [' (atur di menu Layanan Gigi untuk edit)',''],
+  [' (kosong jika panggilan)',''],
+  [' (jika tukar)',''],
+  [' (pisah koma, mis. 16, 26)',''],
+  [' (tanggal)',''],
+  [' (opsional)',''],
+  [' (kosong = lunas; isi untuk DP/cicilan)',''],
+  [', 0 = tidak)',')']
+ ];
+ const ATTR=[
+  ['Harga (kosong = gratis)','Harga'],
+  ['Ketik nama layanan...','Nama layanan'],
+  ['Ketik nama promo...','Nama promo'],
+  ['Ketik nama obat...','Nama obat']
+ ];
+
+ function cleanText(root){
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
+  while((n=w.nextNode())){let v=n.nodeValue,o=v;
+   TEXT.forEach(([a,b])=>{if(v.includes(a))v=v.split(a).join(b)});
+   if(v!==o)n.nodeValue=v}
+ }
+ function cleanAttr(root){
+  root.querySelectorAll('[placeholder],[title]').forEach(e=>{
+   ATTR.forEach(([a,b])=>{if(e.getAttribute('placeholder')===a)e.setAttribute('placeholder',b)});
+   const t=e.getAttribute('title');if(t&&t.includes('(opsional'))e.removeAttribute('title')})
+ }
+ function cleanBlocks(root){
+  // Subtitle/penjelasan di bawah judul setiap kartu
+  root.querySelectorAll('h2.text-base + p.text-xs').forEach(p=>p.remove());
+  // Keterangan kecil lainnya
+  root.querySelectorAll('p').forEach(p=>{
+   const t=(p.textContent||'').trim();
+   if(t.startsWith('Gigi berwarna =')||t.startsWith('Contoh:'))p.remove()})
+ }
+ function clean(root){if(!root)return;cleanText(root);cleanAttr(root);cleanBlocks(root)}
+
+ const targets=['content','mbody'].map(id=>document.getElementById(id)).filter(Boolean);
+ const obs=new MutationObserver(()=>{obs.disconnect();targets.forEach(clean);targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}))});
+ targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}));
+ targets.forEach(clean);
+})();
+</script>
 </script>
 </body>
 </html>
