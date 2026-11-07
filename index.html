@@ -1171,7 +1171,7 @@ getDB();
    if(d.slice(0,7)===bln)b++;
    else if(d&&d<bln+'-01'&&[...k.set].some(x=>x.slice(0,7)===bln))c++});
   const kt=(l,v,ic,sub)=>`<div class="bg-white p-4 rounded-3xl card-shadow border border-gold-300/40 flex justify-between items-center"><div><p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">${l}</p><h3 class="text-xl font-extrabold mt-1">${v}</h3><p class="text-[11px] text-brand-500 font-semibold mt-1">${sub}</p></div><div class="w-11 h-11 rounded-2xl bg-gold-100 text-brand-600 flex items-center justify-center text-lg"><i class="fa-solid ${ic}"></i></div></div>`;
-  const blok=`<div class="grid grid-cols-2 xl:grid-cols-4 gap-4">${kt('Pasien Baru Hari Ini',a,'fa-user-plus','Baru terdaftar hari ini')}${kt('Pasien Baru Bulan Ini',b,'fa-user-check','Terdaftar bulan ini')}${kt('Pasien Lama Kembali',c,'fa-rotate-left','Datang lagi bulan ini')}${kt('Total Pasien',db.pasien.length,'fa-users','Seluruh data pasien')}</div>`;
+  const blok=`<div class="grid grid-cols-1 md:grid-cols-3 gap-4">${kt('Pasien Baru Hari Ini',a,'fa-user-plus','Baru terdaftar hari ini')}${kt('Pasien Baru Bulan Ini',b,'fa-user-check','Terdaftar bulan ini')}${kt('Pasien Lama Kembali',c,'fa-rotate-left','Datang lagi bulan ini')}</div>`;
   const mk='<div class="grid grid-cols-1 lg:grid-cols-3 gap-4"><div class="lg:col-span-2">';
   return vD(db).replace(mk,blok+mk)};
 })();
