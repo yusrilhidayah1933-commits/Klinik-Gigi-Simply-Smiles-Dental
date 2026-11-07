@@ -1040,13 +1040,15 @@ getDB();
  const pT=window.prosesTx;
  window.prosesTx=function(e){e.preventDefault();
   const i=$('tx_p'),v=i.value.trim().toLowerCase(),L=getDB().pasien;
-  let m=L.filter(p=>p.nama.toLowerCase()===v);if(!m.length&&v)m=L.filter(p=>p.nama.toLowerCase().includes(v));
+ const idm=i.value.match(/\(([^()]+)\)\s*$/);
+  let m=idm?L.filter(p=>p.id===idm[1]):L.filter(p=>p.nama.toLowerCase()===v);
+  if(!m.length&&v)m=L.filter(p=>p.nama.toLowerCase().includes(v));
   if(m.length!==1)return toast(m.length?'Nama pasien lebih dari satu, ketik lebih lengkap':'Pasien tidak ditemukan. Tambahkan dulu di menu Pasien','warning');
   const teks=i.value;i.value=m[0].id;pT(e);if(document.body.contains(i))i.value=teks};
 
  const iT=INIT.transaksi;
  INIT.transaksi=db=>{iT(db);                          // isian dari reservasi: ubah ID menjadi nama
-  const i=$('tx_p'),p=db.pasien.find(x=>x.id===i.value);if(p)i.value=p.nama;
+  const i=$('tx_p'),p=db.pasien.find(x=>x.id===i.value);if(p)i.value=p.nama+' ('+p.id+')';
   pasangMata('Riwayat Transaksi','tx')};
  INIT.pasien=()=>pasangMata('Data Pasien Klinik','ps');
 
@@ -1066,6 +1068,26 @@ getDB();
     options:{responsive:true,maintainAspectRatio:false}})}}
  {const o=V.laporan_ringkasan;V.laporan_ringkasan=db=>{const g=hitung(itemLayanan(db),qty),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-';
    return o(db).replace(/(Layanan Terlaris: <b>)[\s\S]*?(<\/b>)/,(m,a,b)=>a+E(top)+b)}}
+})();
+</script>
+  <script>
+(function(){
+ const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const hp=s=>String(s||'').replace(/\D/g,'').replace(/^62/,'0');
+
+ // saran di Kasir: "Budi Santoso (PSG-001)" + nomor HP
+ const vT=V.transaksi;
+ V.transaksi=db=>vT(db).replace(/<datalist id="dl_p">[\s\S]*?<\/datalist>/,
+  ()=>`<datalist id="dl_p">${db.pasien.map(p=>`<option value="${E(p.nama+' ('+p.id+')')}">${E(p.phone||'')}</option>`).join('')}</datalist>`);
+
+ // peringatan duplikat saat menambah / mengedit pasien
+ CFG.pasien.chk=(o,id,db)=>{
+  const mirip=db.pasien.filter(x=>x.id!==id&&(
+   (hp(o.phone).length>=8&&hp(x.phone)===hp(o.phone))||
+   String(x.nama).trim().toLowerCase()===String(o.nama).trim().toLowerCase()));
+  if(!mirip.length)return'';
+  return 'Pasien ini mungkin sudah terdaftar:\n'+mirip.map(x=>'• '+x.nama+' ('+x.id+'), HP '+(x.phone||'-')+', kunjungan terakhir '+x.tglKunjungan).join('\n')
+   +'\n\nKlik OK hanya jika ini orang yang BERBEDA.\nKlik Batal untuk memakai data lama (cari di menu Pasien).'};
 })();
 </script>
 </body>
