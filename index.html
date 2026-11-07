@@ -1009,6 +1009,64 @@ getDB();
  const obs=new MutationObserver(()=>{obs.disconnect();targets.forEach(bersih);targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}))});
  targets.forEach(t=>obs.observe(t,{childList:true,subtree:true}));targets.forEach(bersih);
 })();
+  <!-- ===== REVISI 6: tempel SEBELUM </body> terakhir, SETELAH blok "REVISI FINAL" ===== -->
+<script>
+(function(){
+ const nm=v=>Number(v)||0;
+ const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+ /* ===== 1. IKON MATA: tampilkan / sembunyikan (default tersembunyi) ===== */
+ const mata={tx:false,ps:false};
+ window.toggleMata=k=>{mata[k]=!mata[k];render()};
+ function pasangMata(judul,key){
+  const h=[...document.querySelectorAll('#content h2')].find(x=>x.textContent.includes(judul));if(!h)return;
+  const kartu=h.closest('.card-shadow'),kepala=h.parentElement.parentElement,tabel=kartu&&kartu.querySelector('.overflow-x-auto');
+  const tampil=mata[key]||!!Q;                       // saat mencari, data otomatis tampil
+  const b=document.createElement('button');b.type='button';b.className='ic text-brand-600';
+  b.title=tampil?'Sembunyikan':'Tampilkan';
+  b.innerHTML='<i class="fa-solid '+(tampil?'fa-eye':'fa-eye-slash')+'"></i>';
+  b.onclick=()=>toggleMata(key);kepala.appendChild(b);
+  if(!tampil&&tabel){tabel.style.display='none';
+   const p=document.createElement('p');p.className='text-center text-slate-400 text-xs py-6';
+   p.textContent='Data disembunyikan. Klik ikon mata untuk menampilkan.';tabel.after(p)}
+ }
+
+ /* ===== 2. KASIR: NAMA PASIEN DIKETIK (seperti Layanan) ===== */
+ const vT=V.transaksi;
+ V.transaksi=db=>vT(db).replace(/<label class="lb">Pilih Pasien<select id="tx_p"[\s\S]*?<\/select><\/label>/,
+  ()=>`<div class="lb">Nama Pasien<input id="tx_p" list="dl_p" class="inp" placeholder="Nama pasien" autocomplete="off"><datalist id="dl_p">${db.pasien.map(p=>`<option value="${E(p.nama)}">${p.id}</option>`).join('')}</datalist></div>`);
+
+ const pT=window.prosesTx;
+ window.prosesTx=function(e){e.preventDefault();
+  const i=$('tx_p'),v=i.value.trim().toLowerCase(),L=getDB().pasien;
+  let m=L.filter(p=>p.nama.toLowerCase()===v);if(!m.length&&v)m=L.filter(p=>p.nama.toLowerCase().includes(v));
+  if(m.length!==1)return toast(m.length?'Nama pasien lebih dari satu, ketik lebih lengkap':'Pasien tidak ditemukan. Tambahkan dulu di menu Pasien','warning');
+  const teks=i.value;i.value=m[0].id;pT(e);if(document.body.contains(i))i.value=teks};
+
+ const iT=INIT.transaksi;
+ INIT.transaksi=db=>{iT(db);                          // isian dari reservasi: ubah ID menjadi nama
+  const i=$('tx_p'),p=db.pasien.find(x=>x.id===i.value);if(p)i.value=p.nama;
+  pasangMata('Riwayat Transaksi','tx')};
+ INIT.pasien=()=>pasangMata('Data Pasien Klinik','ps');
+
+ /* ===== 3. DASHBOARD & LAPORAN: "LAYANAN" TANPA OBAT ===== */
+ const itemLayanan=db=>db.transaksi.filter(t=>t.status!=='Void').flatMap(t=>{
+   let a;try{a=JSON.parse(t.items)}catch(e){a=null}
+   if(!Array.isArray(a)||!a.length)a=[{nama:t.layanan,harga:nm(t.total),qty:1}];return a})
+  .filter(i=>i.tipe!=='obat'&&!String(i.nama).startsWith('Obat: '));
+ const hitung=(a,f)=>{const m={};a.forEach(i=>m[i.nama]=(m[i.nama]||0)+f(i));return m};
+ const qty=i=>nm(i.qty)||1;
+
+ {const o=INIT.dashboard;INIT.dashboard=db=>{o(db);const s=hitung(itemLayanan(db),qty);
+   mk('c2',{type:'doughnut',data:{labels:Object.keys(s),datasets:[{data:Object.values(s),backgroundColor:COL}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}})}}
+ {const o=INIT.statistik;INIT.statistik=db=>{o(db);const g=hitung(itemLayanan(db),i=>nm(i.harga)*qty(i));
+   mk('c1',{type:'bar',data:{labels:Object.keys(g),datasets:[{label:'Pendapatan (Rp)',data:Object.values(g),backgroundColor:'#6d0f26'}]},
+    options:{responsive:true,maintainAspectRatio:false}})}}
+ {const o=V.laporan_ringkasan;V.laporan_ringkasan=db=>{const g=hitung(itemLayanan(db),qty),top=Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'-';
+   return o(db).replace(/(Layanan Terlaris: <b>)[\s\S]*?(<\/b>)/,(m,a,b)=>a+E(top)+b)}}
+})();
+</script>
 </script>
 </script>
 </body>
