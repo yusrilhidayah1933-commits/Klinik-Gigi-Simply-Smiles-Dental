@@ -1090,5 +1090,91 @@ getDB();
    +'\n\nKlik OK hanya jika ini orang yang BERBEDA.\nKlik Batal untuk memakai data lama (cari di menu Pasien).'};
 })();
 </script>
+  <script>
+(function(){
+ const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const hp=s=>String(s||'').replace(/\D/g,'').replace(/^62/,'0');
+ Object.assign(STC,{Baru:'blue',Lama:'emerald'});
+
+ /* ---- tanggal daftar: otomatis untuk pasien baru, diisi untuk data lama ---- */
+ const _pre=CFG.pasien.pre;
+ CFG.pasien.pre=(o,n)=>{_pre(o,n);if(n)o.tglDaftar=o.tglKunjungan||today()};
+ const _m=window.mig;
+ window.mig=function(db){const a=_m(db);let ch=false;
+  (db.pasien||[]).forEach(p=>{if(!p.tglDaftar){
+   const ds=[p.tglKunjungan,...(db.transaksi||[]).filter(t=>t.pasienId===p.id).map(t=>t.tgl),
+    ...(db.rekamMedis||[]).filter(r=>r.pasienId===p.id).map(r=>r.tanggal)].filter(Boolean).sort();
+   p.tglDaftar=ds[0]||today();ch=true}});
+  return a||ch};
+ { const d=getDB(); saveDB(d); }
+
+ /* ---- hitung kunjungan per pasien ---- */
+ const kunj=(db,p)=>{
+  const s=new Set([p.tglKunjungan,
+   ...db.transaksi.filter(t=>t.pasienId===p.id&&t.status!=='Void').map(t=>t.tgl),
+   ...db.rekamMedis.filter(r=>r.pasienId===p.id).map(r=>r.tanggal)].filter(Boolean));
+  return{set:s,n:s.size,last:[...s].sort().pop()||'-'}};
+
+ /* ---- pop-up Cek Pasien ---- */
+ window.cekPasien=function(){
+  showModal(`<h3 class="font-bold text-base text-brand-700 mb-3">Cek Pasien Baru / Lama</h3>
+  <div class="grid grid-cols-2 gap-3 text-xs">
+   <label class="lb">Nama<input id="cp_n" class="inp" oninput="cpFind()" autocomplete="off"></label>
+   <label class="lb">No. HP / WA<input id="cp_h" class="inp" oninput="cpFind()" autocomplete="off"></label></div>
+  <div id="cp_r" class="mt-4 space-y-2 text-xs"></div>
+  <div class="text-right pt-3"><button onclick="closeModal()" class="btn-g">Tutup</button></div>`);
+  cpFind();setTimeout(()=>{const i=$('cp_n');if(i)i.focus()},50)};
+
+ window.cpFind=function(){
+  const db=getDB(),n=$('cp_n').value.trim().toLowerCase(),h=hp($('cp_h').value),w=n.split(/\s+/).filter(Boolean),r=$('cp_r');
+  if(!w.length&&h.length<5){r.innerHTML='<p class="text-slate-400">Ketik nama atau nomor HP pasien.</p>';return}
+  const byHp=p=>h.length>=5&&hp(p.phone).includes(h),byNm=p=>w.length&&w.every(x=>String(p.nama).toLowerCase().includes(x));
+  const m=db.pasien.filter(p=>byHp(p)||byNm(p)).sort((a,b)=>byHp(b)-byHp(a));
+  const baru=`<button onclick="cpBaru()" class="${m.length?'btn-g':'btn-p'} w-full mt-2"><i class="fa-solid fa-user-plus mr-1"></i> ${m.length?'Bukan orang ini, daftarkan sebagai Pasien Baru':'Daftarkan sebagai Pasien Baru'}</button>`;
+  if(!m.length){r.innerHTML=`<p class="font-bold text-blue-700">Tidak ditemukan: ini pasien BARU.</p>${baru}`;return}
+  r.innerHTML=`<p class="font-bold text-emerald-700">Ditemukan ${m.length} data. Jika orangnya sama, ini pasien LAMA:</p>`
+   +m.map(p=>{const k=kunj(db,p);
+    return `<div class="p-3 rounded-2xl bg-gold-100/60 flex justify-between gap-2"><div>
+     <b>${E(p.nama)}</b> <span class="text-slate-400">${p.id}</span> ${byHp(p)?'<span class="text-[10px] text-emerald-700 font-bold">HP sama</span>':''}<br>
+     HP ${E(p.phone||'-')} · ${E(p.umur||'-')} th<br>
+     Terdaftar ${E(p.tglDaftar||'-')} · ${k.n}x kunjungan · terakhir ${k.last}</div>
+     <div class="flex flex-col gap-1 shrink-0">
+      <button onclick="cpAksi('kasir','${p.id}')" class="btn-p" style="padding:.35rem .7rem">Kasir</button>
+      <button onclick="cpAksi('rm','${p.id}')" class="btn-g" style="padding:.35rem .7rem">Rekam Medis</button>
+      <button onclick="cpAksi('res','${p.id}')" class="btn-g" style="padding:.35rem .7rem">Reservasi</button></div></div>`}).join('')+baru};
+
+ window.cpBaru=function(){const n=$('cp_n').value.trim(),h=$('cp_h').value.trim();closeModal();go('pasien');openForm('pasien',null,{nama:n,phone:h})};
+ window.cpAksi=function(k,id){const p=getDB().pasien.find(x=>x.id===id);if(!p)return;closeModal();
+  if(k==='kasir'){go('transaksi');const i=$('tx_p');if(i)i.value=p.nama+' ('+p.id+')'}
+  else if(k==='rm'){window.rmP=p.id;go('rekam_medis')}
+  else{go('reservasi');openForm('reservasi',null,{nama:p.nama,phone:p.phone})}};
+
+ /* ---- Tabel Pasien: badge Baru / Lama ---- */
+ const vP=V.pasien;
+ V.pasien=db=>vP({...db,pasien:db.pasien.map(p=>{const k=kunj(db,p);
+   return{...p,nama:p.nama+' '+bdg(k.n<=1?'Baru':'Lama')+` <span class="text-[10px] text-slate-400">${k.n}x</span>`}})})
+  .replace(`<button onclick="openForm('pasien')" class="btn-p"><i class="fa-solid fa-plus mr-1"></i> Tambah Pasien Baru</button>`,
+   `<button onclick="cekPasien()" class="btn-p"><i class="fa-solid fa-user-check mr-1"></i> Cek & Tambah Pasien</button>`);
+
+ /* ---- Kasir & Reservasi: tombol cek ---- */
+ const vT=V.transaksi;
+ V.transaksi=db=>vT(db).replace('<div class="lb">Nama Pasien<input','<div class="lb">Nama Pasien <button type="button" onclick="cekPasien()" class="text-brand-600 underline font-bold ml-1">Cek baru/lama</button><input');
+ const vR=V.reservasi;
+ V.reservasi=db=>vR(db).replace(`<button onclick="openForm('reservasi')" class="btn-p">`,
+  `<button onclick="cekPasien()" class="btn-g"><i class="fa-solid fa-user-check mr-1"></i> Cek Pasien</button><button onclick="openForm('reservasi')" class="btn-p">`);
+
+ /* ---- Dashboard: kartu pasien baru / lama ---- */
+ const vD=V.dashboard;
+ V.dashboard=db=>{const td=today(),bln=td.slice(0,7);let a=0,b=0,c=0;
+  db.pasien.forEach(p=>{const d=p.tglDaftar||'',k=kunj(db,p);
+   if(d===td)a++;
+   if(d.slice(0,7)===bln)b++;
+   else if(d&&d<bln+'-01'&&[...k.set].some(x=>x.slice(0,7)===bln))c++});
+  const kt=(l,v,ic,sub)=>`<div class="bg-white p-4 rounded-3xl card-shadow border border-gold-300/40 flex justify-between items-center"><div><p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">${l}</p><h3 class="text-xl font-extrabold mt-1">${v}</h3><p class="text-[11px] text-brand-500 font-semibold mt-1">${sub}</p></div><div class="w-11 h-11 rounded-2xl bg-gold-100 text-brand-600 flex items-center justify-center text-lg"><i class="fa-solid ${ic}"></i></div></div>`;
+  const blok=`<div class="grid grid-cols-2 xl:grid-cols-4 gap-4">${kt('Pasien Baru Hari Ini',a,'fa-user-plus','Baru terdaftar hari ini')}${kt('Pasien Baru Bulan Ini',b,'fa-user-check','Terdaftar bulan ini')}${kt('Pasien Lama Kembali',c,'fa-rotate-left','Datang lagi bulan ini')}${kt('Total Pasien',db.pasien.length,'fa-users','Seluruh data pasien')}</div>`;
+  const mk='<div class="grid grid-cols-1 lg:grid-cols-3 gap-4"><div class="lg:col-span-2">';
+  return vD(db).replace(mk,blok+mk)};
+})();
+</script>
 </body>
 </html>
